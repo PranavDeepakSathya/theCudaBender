@@ -1,5 +1,5 @@
-#include "atoms/utils.cuh"
-#include "atoms/naive_tensor.cuh"
+#include "../atoms/utils.cuh"
+#include "../atoms/naive_tensor.cuh"
 
 __global__ void vec_add (nv_bfloat16* A, nv_bfloat16 *B, nv_bfloat16 *C)
 {
