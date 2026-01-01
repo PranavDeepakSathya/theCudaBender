@@ -26,7 +26,7 @@ public:
     }
 
     // 2. Initializer
-    void init_pattern(InitMode mode, RandomDist rand_dist = DIST_FLOAT_NEG1_1) {
+    void init_pattern(InitMode mode, RandomDist rand_dist) {
         if (!h_ptr) allocate(); // Auto-allocate if forgot
 
         switch (mode) {
