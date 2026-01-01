@@ -1,0 +1,13 @@
+Launching Hierarchy Inspector...
+Expectation: 4 Clusters, 2 Blocks/Cluster.
+------------------------------------------------------------
+| Cluster: 03 | Block(Global): 006 | Block(Local): 00 | Size: 2 |
+| Cluster: 03 | Block(Global): 007 | Block(Local): 01 | Size: 2 |
+| Cluster: 02 | Block(Global): 005 | Block(Local): 01 | Size: 2 |
+| Cluster: 02 | Block(Global): 004 | Block(Local): 00 | Size: 2 |
+| Cluster: 01 | Block(Global): 002 | Block(Local): 00 | Size: 2 |
+| Cluster: 01 | Block(Global): 003 | Block(Local): 01 | Size: 2 |
+| Cluster: 00 | Block(Global): 000 | Block(Local): 00 | Size: 2 |
+| Cluster: 00 | Block(Global): 001 | Block(Local): 01 | Size: 2 |
+------------------------------------------------------------
+Done.
