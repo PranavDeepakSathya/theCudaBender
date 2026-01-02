@@ -13,6 +13,8 @@
 #include <cuda/ptx>
 #include <numeric>
 #include <iomanip>
+#include <cudaTypedefs.h>
+#include <cuda/barrier>
 
 // 1. The Essential Macro
 #define CHECK_CUDA(call) { \
@@ -34,3 +36,13 @@ enum RandomDist {
     DIST_FLOAT_NEG1_1, // [-1.0, 1.0]
     DIST_INT_0_100     // [0, 100]
 };
+
+__device__ inline bool is_elected()
+{
+    unsigned int tid = threadIdx.x;
+    unsigned int warp_id = tid / 32;
+    unsigned int uniform_warp_id = __shfl_sync(0xFFFFFFFF, warp_id, 0); // Broadcast from lane 0.
+    return (uniform_warp_id == 0 && cuda::ptx::elect_sync(0xFFFFFFFF)); // Elect a leader thread among warp 0.
+}
+
+
