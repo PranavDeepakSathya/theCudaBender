@@ -10,6 +10,9 @@
 #include <cuda_runtime.h>
 #include <cuda.h>
 #include <cooperative_groups.h>
+#include <cuda/ptx>
+#include <numeric>
+#include <iomanip>
 
 // 1. The Essential Macro
 #define CHECK_CUDA(call) { \

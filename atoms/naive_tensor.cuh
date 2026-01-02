@@ -63,6 +63,25 @@ public:
         printf("[%s] Index %lu: %f\n", label, idx, val);
     }
 
+        void pretty_print(const std::vector<size_t>& shape) {
+        // Safety: Ensure we are printing the latest data
+        to_host();
+
+        // Validation: Verify shape matches allocated size
+        size_t shape_total = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+        if (shape_total != size) {
+            printf("\n[PrettyPrint] Error: Shape product (%lu) != Tensor size (%lu)\n", shape_total, size);
+            return;
+        }
+
+        // Setup stream for pretty numbers
+        std::cout << std::fixed << std::setprecision(4); // 4 decimal places
+        
+        size_t offset = 0;
+        print_recursive(shape, 0, offset);
+        std::cout << std::endl;
+    }
+
 private:
     void fill_random(RandomDist rand_dist) {
         std::random_device rd;
@@ -74,6 +93,43 @@ private:
         } else {
             std::uniform_int_distribution<int> dist(0, 100);
             for(size_t i = 0; i < size; ++i) h_ptr[i] = static_cast<T>(dist(gen));
+        }
+    }
+// Usage: tensor.pretty_print({2, 4, 8});
+
+
+private:
+    // Recursive helper to handle arbitrary nesting depth
+    void print_recursive(const std::vector<size_t>& shape, int dim, size_t& offset) {
+        // Base Case: Innermost dimension (Print the row)
+        if (dim == shape.size() - 1) {
+            std::cout << "[";
+            for (size_t i = 0; i < shape[dim]; ++i) {
+                // Handle the casting generically
+                float val = static_cast<float>(h_ptr[offset++]);
+                
+                // Print with slight padding for positive numbers to align with negatives
+                if (val >= 0) std::cout << " "; 
+                std::cout << val;
+                
+                if (i < shape[dim] - 1) std::cout << ", ";
+            }
+            std::cout << "]";
+        } 
+        // Recursive Step: Outer dimensions
+        else {
+            std::cout << "[";
+            for (size_t i = 0; i < shape[dim]; ++i) {
+                // If not the first row in this block, indent to align with the opening bracket
+                if (i > 0) std::cout << std::string(dim + 1, ' ');
+                
+                print_recursive(shape, dim + 1, offset);
+
+                if (i < shape[dim] - 1) {
+                    std::cout << ",\n"; // Newline for next row/block
+                }
+            }
+            std::cout << "]";
         }
     }
 };

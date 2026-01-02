@@ -1,5 +1,5 @@
-#include "atoms/utils.cuh"
-#include "atoms/naive_launcher.cuh"
+#include "../atoms/utils.cuh"
+#include "../atoms/naive_launcher.cuh"
 
 namespace cg = cooperative_groups;
 
