@@ -1,0 +1,26 @@
+==========================================================
+ DEVICE: NVIDIA GeForce RTX 5090 (Compute 12.0)
+==========================================================
+ [Compute]
+  Multiprocessors (SMs):       170
+  Max Threads per SM:          1536
+  Max Threads per Block:       1024
+  Warp Size:                   32
+
+ [Registers]
+  Max 32-bit Regs per Block:   65536
+  Max 32-bit Regs per SM:      65536
+
+ [Memory Hierarchy]
+  Smem per Block (Static):     48 KB
+  Smem per Block (Max Dyn):    99 KB
+  Smem per Multiprocessor:     100 KB
+  L2 Cache Size:               96 MB
+  Total Global Memory:         31.36 GB
+  Memory Bus Width:            512-bit
+==========================================================
+
+Occupancy Check:
+  Kernel: matmul
+  Block Size: 160 threads
+  Max Active Blocks per SM: 9
