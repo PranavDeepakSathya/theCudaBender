@@ -1,0 +1,10 @@
+--- SMEM LdMatrix Latency Benchmark (Fixed) ---
+
+Running DISTRIBUTED (Unique Addresses)...
+Avg Clocks/Iter: 128.367
+
+Running BROADCAST (Same Address)...
+Avg Clocks/Iter: 128.099
+
+Ratio (Broadcast/Distributed): 1.00x
+CONCLUSION: SMEM Broadcast is effectively free.
