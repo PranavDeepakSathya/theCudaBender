@@ -32,9 +32,8 @@ public:
     // ----------------------------------------------------------------
     // 1. The "Nice" Method (2D Row Major Matrix)
     // ----------------------------------------------------------------
-    // Handles the confusing coordinate flip for you.
     // logical_shape = {Rows, Cols}
-    // box_shape     = {TileRows, TileCols}
+    // Fastest Dim: Cols (Stride 1) | Slowest Dim: Rows (Stride Cols)
     static CUtensorMap create_2d_row_major(
         T* global_address,
         std::pair<uint64_t, uint64_t> logical_shape, 
@@ -45,31 +44,50 @@ public:
         auto [rows, cols] = logical_shape;
         auto [box_r, box_c] = box_shape;
 
-        // --- THE FLIP ---
-        // Driver API expects dimensions ordered by stride (fastest changing first).
-        // For Row-Major, Cols is fastest (stride 1), Rows is slowest (stride Cols).
+        // Driver Expects: {Fastest, Slowest}
+        uint64_t g_dims[2] = {cols, rows};
         
-        uint64_t g_dims[2] = {cols, rows};     // {Fastest, Slowest}
-        uint64_t g_strides[1] = {cols * sizeof(T)}; // Stride of the Slowest dim (in bytes)
+        // Stride of the Slowest dim (Rows) is the Width (Cols)
+        uint64_t g_strides[1] = {cols * sizeof(T)}; 
         
-        uint32_t b_dims[2] = {box_c, box_r};   // Box must match dim order
-        uint32_t e_strides[2] = {1, 1};        // Dense box
+        // Box match: {Fastest, Slowest} -> {BoxCols, BoxRows}
+        uint32_t b_dims[2] = {box_c, box_r};   
+        uint32_t e_strides[2] = {1, 1};        
 
-        return create_raw(
-            global_address, 
-            2, 
-            g_dims, 
-            g_strides, 
-            b_dims, 
-            e_strides, 
-            swizzle_mode, 
-            CU_TENSOR_MAP_INTERLEAVE_NONE,
-            l2_promo
-        );
+        return create_raw(global_address, 2, g_dims, g_strides, b_dims, e_strides, swizzle_mode, CU_TENSOR_MAP_INTERLEAVE_NONE, l2_promo);
     }
 
     // ----------------------------------------------------------------
-    // 2. The "Raw" Method (Full Control)
+    // 2. The "Nice" Method (2D Column Major Matrix)
+    // ----------------------------------------------------------------
+    // logical_shape = {Rows, Cols}
+    // Fastest Dim: Rows (Stride 1) | Slowest Dim: Cols (Stride Rows)
+    static CUtensorMap create_2d_col_major(
+        T* global_address,
+        std::pair<uint64_t, uint64_t> logical_shape, 
+        std::pair<uint32_t, uint32_t> box_shape,
+        CUtensorMapSwizzle swizzle_mode = CU_TENSOR_MAP_SWIZZLE_NONE,
+        CUtensorMapL2promotion l2_promo = CU_TENSOR_MAP_L2_PROMOTION_NONE
+    ) {
+        auto [rows, cols] = logical_shape;
+        auto [box_r, box_c] = box_shape;
+
+        // Driver Expects: {Fastest, Slowest}
+        // In Col Major, Rows are contiguous (Fastest), Cols are strided (Slowest).
+        uint64_t g_dims[2] = {rows, cols}; 
+        
+        // Stride of the Slowest dim (Cols) is the Height (Rows)
+        uint64_t g_strides[1] = {rows * sizeof(T)}; 
+        
+        // Box match: {Fastest, Slowest} -> {BoxRows, BoxCols}
+        uint32_t b_dims[2] = {box_r, box_c};   
+        uint32_t e_strides[2] = {1, 1};        
+
+        return create_raw(global_address, 2, g_dims, g_strides, b_dims, e_strides, swizzle_mode, CU_TENSOR_MAP_INTERLEAVE_NONE, l2_promo);
+    }
+
+    // ----------------------------------------------------------------
+    // 3. The "Raw" Method (Full Control)
     // ----------------------------------------------------------------
     static CUtensorMap create_raw(
         T* global_address,
@@ -111,13 +129,12 @@ public:
     }
 
 private:
-    // Helper to deduce enum from template type T
     static CUtensorMapDataType get_data_type() {
         if constexpr (std::is_same_v<T, float>) return CU_TENSOR_MAP_DATA_TYPE_FLOAT32;
         if constexpr (std::is_same_v<T, __half>) return CU_TENSOR_MAP_DATA_TYPE_FLOAT16;
         if constexpr (std::is_same_v<T, nv_bfloat16>) return CU_TENSOR_MAP_DATA_TYPE_BFLOAT16;
         if constexpr (std::is_same_v<T, int32_t>) return CU_TENSOR_MAP_DATA_TYPE_INT32;
         if constexpr (std::is_same_v<T, uint8_t>) return CU_TENSOR_MAP_DATA_TYPE_UINT8;
-        return CU_TENSOR_MAP_DATA_TYPE_UINT8; // Default/Fallback
+        return CU_TENSOR_MAP_DATA_TYPE_UINT8;
     }
 };
