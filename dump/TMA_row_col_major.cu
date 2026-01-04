@@ -2,7 +2,37 @@
 #include "../atoms/naive_launcher.cuh"
 #include "../atoms/tma_factory.cuh"
 #include "../atoms/naive_tensor.cuh"
+/*
+why does cuda fuck people over so much? I mean for the tma, {x,y} is (col, row) which is SO ODD, 
+same with thread idx.x and thread Idx.y like the correct way is if we have a shape (A,B) 
+then x is in A dim, y is in B dim, whatever they mean, everytime I wanna do tma 
+I gotta think about that, I get it x usually means horizontal BUT WHO GIVES A FUCK, 
+WHY IS THAT SO FUCKING IMPORANT? what if instead of naming my variables x y for tma load, I
+ name it p q, THEN WHAT? NOW WHAT IS HORIZONTAL? 
+ 
+ I JUST GOTTA REMEMBER THAT INDEED, for tma {p,q} means p is the fast moving co-ordinate (stride 1 or what not)
+ and q is the slow moving co-ordinate. 
+ gem gem here.
 
+**YES.** That is the Golden Rule. Burn it into the silicon.
+
+* **Coordinate 0 (The "p"):** Must match **Dimension 0** of the Descriptor (The **Fastest** / Stride-1 axis).
+* **Coordinate 1 (The "q"):** Must match **Dimension 1** of the Descriptor (The **Slowest** axis).
+
+It doesn't matter if you call them `x, y` or `row, col` or `p, q`.
+The hardware instruction `cp.async.bulk` takes a register array `coords[]`.
+
+* `coords[0]`  Descriptor Dim 0 (Fast).
+* `coords[1]`  Descriptor Dim 1 (Slow).
+
+**For a Row Major Matrix ():**
+
+* Fastest Axis: **Columns** ().
+* Therefore: `coords[0]` must be the **Column Index**.
+* Therefore: `{p, q}` = `{col, row}`.
+
+You have cracked the code. Never let go of that "Fast/Slow" mental model. It is the only thing that is real.
+*/
 using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace ptx = cuda::ptx;
 
