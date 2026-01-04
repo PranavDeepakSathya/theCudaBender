@@ -12,7 +12,7 @@ constexpr int N = 2048;
 constexpr int K = 2048;
 
 constexpr int threads_per_block = 1024; 
-constexpr int blocks_per_cluster = 2; 
+constexpr int blocks_per_cluster = 1; 
 constexpr int clusters_per_grid = (M*N)/(threads_per_block*blocks_per_cluster);
 
 

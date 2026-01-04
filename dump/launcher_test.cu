@@ -43,7 +43,7 @@ int main() {
     // Each Cluster has 2 Blocks.
     // Each Block has 1 Thread (just for printing).
     int grid_clusters = 4;
-    int cluster_blocks = 2;
+    int cluster_blocks = 1;
     int threads = 1;
 
     std::cout << "Launching Hierarchy Inspector..." << std::endl;
