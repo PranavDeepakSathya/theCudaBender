@@ -16,8 +16,8 @@ constexpr int k = k_stages * wk;
 __global__ void k_cycle(
     __grid_constant__ const CUtensorMap A_map,
     __grid_constant__ const CUtensorMap B_map,
-    NaiveTensor<nv_bfloat16>::DeviceView A_out,
-    NaiveTensor<nv_bfloat16>::DeviceView B_out
+    __grid_constant__ const CUtensorMap A_out_map,
+    __grid_constant__ const CUtensorMap B_out_map
 )
 {
   __shared__ alignas(128) nv_bfloat16 As[m*k]; 
@@ -44,7 +44,58 @@ __global__ void k_cycle(
   }
   bar.wait(std::move(token));
 
+  int t = threadIdx.x; 
+  int w = t/32; 
+  int a_warp_m = w / k_stages; 
+  int a_warp_k = w % k_stages; //we view the 16 warps as row major 
+  int b_warp_k = w % k_stages; 
+  int b_warp_n = ((int)w/k_stages) % warp_n; //we view the 16 warps as col major 
+  nv_bfloat162 regs_a[4];
+  nv_bfloat162 regs_b[4];
+
   
+
+  for (int stage_idx = 0; stage_idx < k_stages; stage_idx+=1)
+  {
+    int a_m_offset = a_warp_m*wm; 
+    int a_k_offset = ((a_warp_k+stage_idx)%k_stages)*wk; 
+    int b_k_offset = ((b_warp_k+stage_idx)%k_stages)*wk; 
+    int b_n_offset = b_warp_n*wn; 
+    int a_stride = k; 
+    int b_stride = k;
+    atmos::ldmatrix<4, atmos::RowMajor>(regs_a, As, a_m_offset, a_k_offset, a_stride);
+    atmos::stmatrix<4, atmos::ColMajor>(regs_b, Bs, b_k_offset, b_n_offset, b_stride);
+   
+    __syncthreads(); 
+  }
+  ptx::fence_proxy_async(ptx::space_shared);
+  __syncthreads();
+  if (is_elected()) {
+        int32_t coords_a[2] = {0, 0}; // Store whole tensor
+        int32_t coords_b[2] = {0, 0};
+        
+        // Store A_out
+        ptx::cp_async_bulk_tensor(
+            ptx::space_global, ptx::space_shared, 
+            &A_out_map,coords_a, &As
+        );
+        
+        // Store B_out
+        ptx::cp_async_bulk_tensor(
+            ptx::space_global, ptx::space_shared, 
+            &B_out_map, coords_b, &Bs
+        );
+
+        // Commit and Wait for Stores to finish reading SMEM
+        // If we don't wait, the next iteration's stmatrix might overwrite SMEM 
+        // while TMA is still transferring it to Global.
+        ptx::cp_async_bulk_commit_group();
+        ptx::cp_async_bulk_wait_group_read(ptx::n32_t<0>());
+    }
+    if (threadIdx.x == 0) {
+    (&bar)->~barrier();
+  }
+
 }
 
 int main()
@@ -67,17 +118,16 @@ int main()
     A_out.to_device(); 
     B_out.to_device();
 
-    auto A_out_view = A_out.get_device_view();
-    auto B_out_view = B_out.get_device_view();
+
     
     CUtensorMap a_map = TmaDescriptor<nv_bfloat16>::create_2d_row_major(A.d_ptr,{m,k},{m,k});
     CUtensorMap b_map = TmaDescriptor<nv_bfloat16>::create_2d_col_major(B.d_ptr, {k,n}, {k,n});
+    CUtensorMap a_out_map = TmaDescriptor<nv_bfloat16>::create_2d_row_major(A_out.d_ptr,{m,k},{m,k});
+    CUtensorMap b_out_map = TmaDescriptor<nv_bfloat16>::create_2d_col_major(B_out.d_ptr, {k,n}, {k,n});
 
     dim3 threads(warp_m * warp_n * 32, 1, 1);
     dim3 blocks(1, 1, 1);
-    
-    int smem_size = 227 * 1024;
-    cudaFuncSetAttribute(k_cycle, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size);
+
 
     cudaEvent_t start, stop;
     CHECK_CUDA(cudaEventCreate(&start));
@@ -85,14 +135,14 @@ int main()
 
     std::cout << "Launching Kernel [M=" << m << ", N=" << n << ", K=" << k << "]..." << std::endl;
 
-    k_cycle<<<blocks, threads, smem_size>>>(a_map, b_map, A_out_view, B_out_view);
+    k_cycle<<<blocks, threads>>>(a_map, b_map, a_out_map, b_out_map);
     CHECK_CUDA(cudaGetLastError());
     CHECK_CUDA(cudaDeviceSynchronize());
 
     constexpr int ITERS = 20;
     CHECK_CUDA(cudaEventRecord(start));
     for(int i = 0; i < ITERS; ++i) {
-        k_cycle<<<blocks, threads, smem_size>>>(a_map, b_map, A_out_view, B_out_view);
+        k_cycle<<<blocks, threads>>>(a_map, b_map, a_out_map, b_out_map);
     }
     CHECK_CUDA(cudaEventRecord(stop));
     CHECK_CUDA(cudaEventSynchronize(stop));
@@ -128,6 +178,26 @@ int main()
 
     CHECK_CUDA(cudaEventDestroy(start));
     CHECK_CUDA(cudaEventDestroy(stop));
+// ... after A_out.to_host(); B_out.to_host();
+
+    std::cout << "\n================ DEBUG DUMP ================" << std::endl;
+
+    std::cout << "\n--- Tensor A (Reference) ---" << std::endl;
+    A.pretty_print();
+    std::cout << "\n--- Tensor A_out (Kernel Output) ---" << std::endl;
+    A_out.pretty_print();
+
+    std::cout << "\n------------------------------------------------------------" << std::endl;
+
+    std::cout << "\n--- Tensor B (Reference) ---" << std::endl;
+    B.pretty_print();
+    std::cout << "\n--- Tensor B_out (Kernel Output) ---" << std::endl;
+    B_out.pretty_print();
+
+    std::cout << "\n============================================" << std::endl;
+
+    // ... continue to error counting
+
 
     return 0;
 }
