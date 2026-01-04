@@ -3,6 +3,9 @@
 #include "atoms/tma_factory.cuh"
 #include "atoms/naive_tensor.cuh"
 
+using barrier = cuda::barrier<cuda::thread_scope_block>;
+namespace ptx = cuda::ptx;
+
 constexpr int wmma_m = 16; 
 constexpr int wmma_k = 16; 
 constexpr int wmma_n = 8; 
@@ -21,9 +24,30 @@ constexpr int n_cpg = 1;
 
 __global__ void base_matmul(__grid_constant__ const CUtensorMap A_map, __grid_constant__ const CUtensorMap B_map, nv_bfloat16*C)
 {
-  if (threadIdx.x == 0 && blockIdx.x == 0) {
-        printf("TMA Map Address: %p, %p\n", &A_map, &B_map);
-    }
+  __shared__ alignas(128) nv_bfloat16 As[m][k]; 
+  __shared__ alignas(128) nv_bfloat16 Bs[k][n];
+
+  __shared__ barrier bar; 
+  if (threadIdx.x == 0)
+  {
+    init(&bar, blockDim.x);
+  }
+  __syncthreads();
+
+  barrier::arrival_token token; 
+  if (is_elected())
+  {
+    int32_t coords[2] = {0,0};
+    ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, &As, &A_map, coords, cuda::device::barrier_native_handle(bar));
+    ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, &Bs, &B_map, coords, cuda::device::barrier_native_handle(bar));
+    token = cuda::device::barrier_arrive_tx(bar, 1, sizeof(As)+sizeof(Bs));
+  }
+  else
+  {
+    token = bar.arrive();
+  }
+  bar.wait(std::move(token));
+  
 }
 
 int main()
@@ -44,7 +68,7 @@ int main()
   NaiveLauncher launcher(n_cpg, n_bpc,n_tpb);
   CUtensorMap a_map = TmaDescriptor<nv_bfloat16>::create_2d_row_major(A.d_ptr,{m,k},{m,k});
   CUtensorMap b_map = TmaDescriptor<nv_bfloat16>::create_2d_row_major(B.d_ptr, {k,n}, {k,n});
-  launcher.launch(base_matmul, a_map, b_map, c.d_ptr);
+  launcher.launch(base_matmul, a_map, b_map, C.d_ptr);
   cudaDeviceSynchronize();
 
 
