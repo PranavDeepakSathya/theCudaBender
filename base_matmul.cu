@@ -21,12 +21,22 @@ constexpr int n_tpb = n_consumer_warps*32;
 constexpr int n_bpc = 1;
 constexpr int n_cpg = 1;
 
+constexpr int a_ld_m = 16;          // 8 rows
+constexpr int a_ld_n = 16;         // 32 columns 
+constexpr int lane_n = 8;
+
 
 __global__ void base_matmul(__grid_constant__ const CUtensorMap A_map, __grid_constant__ const CUtensorMap B_map,
   NaiveTensor<float>::DeviceView C)
 {
   __shared__ alignas(128) nv_bfloat16 As[m*k]; 
   __shared__ alignas(128) nv_bfloat16 Bs[k*n];
+  __shared__ alignas(128) float Cs[m*n];
+
+  int t = threadIdx.x;
+  int w = t/32;
+  int l = t%32;
+
 
   __shared__ barrier bar; 
   if (threadIdx.x == 0)
@@ -49,6 +59,7 @@ __global__ void base_matmul(__grid_constant__ const CUtensorMap A_map, __grid_co
   }
   bar.wait(std::move(token));
   
+  //load_A into the right fragments. 
 
 }
 
