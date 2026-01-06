@@ -59,7 +59,14 @@ __global__ void base_matmul(__grid_constant__ const CUtensorMap A_map, __grid_co
   }
   bar.wait(std::move(token));
   
-  //load_A into the right fragments. 
+  //load_A, load_B into the right fragments. (first split warp index into row major, using the lexcial isomorphism)
+  wa_m_base = (w/warp_shape_n)*ld_m;
+  wa_n_base = (w % warp_shape_n)*ld_n; 
+
+  //split warp index into column major using colexical isomorphism for B 
+  wb_m_base = (w % warp_shape_m)*ld_m; 
+  wb_n_base = (w/warp_shape_m) % warp_shape_n;
+
 
 }
 
