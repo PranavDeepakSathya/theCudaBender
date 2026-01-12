@@ -45,6 +45,49 @@ def coordinate_map(stride: Tuple[int], co_ordinates: Tuple[int]):
   return res
     
 def layout_map(shape:Tuple[int], stride:Tuple[int], idx: int): 
+  assert len(shape) == len(stride)
   size = reduce(mul,shape,1)
   assert 0 <= idx < size 
   return coordinate_map(stride, colex_inv(shape, idx))
+
+def sort(shape: Tuple[int], stride: Tuple[int]): 
+  assert len(shape) == len(stride)
+  m = len(shape)
+  for i in range(m): 
+    for j in range(i+1, m):
+      if stride[i] > stride[j]: 
+        stride[i], stride[j] = stride[j], stride[i]
+        shape[i], shape[j] = shape[j], shape[i]
+        
+        
+  for i in range(m-1): 
+    if stride[i] == stride[i+1] and shape[i] > shape[i+1]: 
+      shape[i],shape[i+1] = shape[i+1],shape[i]
+      
+  return tuple(shape), tuple(stride)
+
+def squeeze(shape: Tuple[int], stride: Tuple[int]): 
+  assert len(shape) == len(stride)
+  new_shape = []
+  new_stride = []
+  for i in range(len(shape)): 
+    if shape[i] > 1: 
+      new_shape.append(shape[i])
+      new_stride.append(stride[i])
+      
+  return tuple(new_shape), tuple(new_stride)
+
+def divides (a:Tuple[int], b:Tuple[int]) -> bool: 
+  if len(a) <= len(b): 
+    for i in range(len(a)): 
+      if a[i] != b[i]: 
+        return False 
+    return True 
+  return False
+      
+      
+def get_quotient(a:Tuple[int], b:Tuple[int]) -> bool: 
+  assert divides(a,b) == True 
+  start = a.length 
+  return b[start:]
+  

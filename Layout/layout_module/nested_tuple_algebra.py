@@ -7,6 +7,7 @@ from functools import reduce
 from operator import mul
 from .nested_tuple import NestedTuple
 from .profile import Profile, Atom 
+from . import flat_algebra as fa
 
 def refines(a:NestedTuple,b:NestedTuple):
   assert isinstance(a, NestedTuple) and isinstance(b, NestedTuple)
@@ -75,3 +76,63 @@ def substitute(
 
   new_prof = prof.substitute(profiles)
   return NestedTuple(int_tuple, new_prof)
+
+
+
+
+def mutual_refinement(T: NestedTuple, U: NestedTuple):
+    X = list(T.int_tuple)
+    Y = list(U.int_tuple)
+
+    Xp, Yp = (), ()
+    X_mode, Y_mode = (), ()
+    i,j = 0,0
+
+    while i < len(X) and j < len(Y):
+        xi, yj = X[i], Y[j]
+
+        if xi == yj:
+            X_mode += (xi,)
+            Xp += (X_mode,)
+            X_mode = ()
+
+            Y_mode += (yj,)
+            Yp += (Y_mode,)
+            Y_mode = ()
+
+            i += 1
+            j += 1
+
+        elif yj % xi == 0:
+            X_mode += (xi,)
+            Xp += (X_mode,)
+            X_mode = ()
+
+            Y_mode += (xi,)
+            Y[j] = yj // xi
+            i += 1
+
+        elif xi % yj == 0:
+            Y_mode += (yj,)
+            Yp += (Y_mode,)
+            Y_mode = ()
+
+            X_mode += (yj,)
+            X[i] = xi // yj
+            j += 1
+
+        else:
+            return None
+
+    if X_mode:
+        Xp += (X_mode,)
+    if Y_mode:
+        Yp += (Y_mode,)
+
+    while j < len(Y):
+        Yp += (Y[j],)
+        j += 1
+
+    return NestedTuple(Xp, T.prof), NestedTuple(Yp, U.prof)
+
+      
