@@ -113,7 +113,7 @@ class Layout:
     for i in range(1, len(C_stride)): 
       C_stride.append(t[i-1]*e[i-1])
       C_shape.append(e[i]//(t[i-i]*e[i-1]))
-    flat_profile = Profile((Profile(Atom.STAR) for _ in range(len(C_stride))))
+    flat_profile = Profile(tuple([Profile(Atom.STAR) for _ in range(len(C_stride))]))
     C_shape_nest = NestedTuple(tuple(C_shape), flat_profile)
     C_stride_nest = NestedTuple(tuple(C_stride), flat_profile)
     C_layout = Layout(C_shape_nest, C_stride_nest)
@@ -133,7 +133,7 @@ class Layout:
       
     C_stride.append(t[-1]*e[-1])
     C_shape.append((N//(t[-1]*e[-1])))
-    flat_profile = Profile((Profile(Atom.STAR) for _ in range(len(C_stride)+1)))
+    flat_profile = Profile(tuple([Profile(Atom.STAR) for _ in range(len(C_stride) + 1)]))
     C_shape_nest = NestedTuple(tuple(C_shape), flat_profile)
     C_stride_nest = NestedTuple(tuple(C_stride), flat_profile)
     C_layout = Layout(C_shape_nest, C_stride_nest)

@@ -41,6 +41,7 @@ class NestedTuple:
     return NestedTuple(tuple(flat), prof)
 
   def __post_init__(self):
+    assert isinstance(self.prof, Profile)
     assert self.prof.length == len(self.int_tuple)
 
     object.__setattr__(self, "_rank", self.prof.rank)
@@ -72,7 +73,7 @@ class NestedTuple:
     return self.prof.is_flat()
   
   def flatten(self) -> bool: 
-     new_prof = Tuple([Profile(Atom.STAR)]*self.length)
+     new_prof = Profile(tuple([Profile(Atom.STAR)]*self.length))
      return NestedTuple(self.int_tuple, new_prof)
     
 
@@ -108,7 +109,7 @@ class NestedTuple:
   
   def get_entry(self, i:int) -> int: 
     assert 0 <= i < self.length
-    return self.int_tuple[i]
+    return NestedTuple((self.int_tuple[i],), Profile(Atom.STAR))
 
   def _build_from_flat(self, p: Profile, data: tuple, i: int = 0):
     if p.is_empty():
