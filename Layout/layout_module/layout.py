@@ -19,6 +19,8 @@ class Layout:
   stride: NestedTuple
 
   def __post_init__(self):
+    assert isinstance(self.shape, NestedTuple)
+    assert isinstance(self.stride, NestedTuple)
     assert self.shape.prof == self.stride.prof
     
     
@@ -76,7 +78,7 @@ class Layout:
     )
     
   def relative_coalesce(self, coal_shape:NestedTuple)-> "Layout": 
-    LS = [self.coalesce(la.get_refine_relative_mode(self,coal_shape,i)) for i in range(coal_shape.length)]
+    LS = [la.get_refine_relative_mode(self,coal_shape,i).coalesce() for i in range(coal_shape.length)]
     return la.concatenate(LS)
 
   def is_compact(self)-> bool: 
@@ -102,6 +104,16 @@ class Layout:
     else: 
       return (True, False)
     
+  def is_tractable(self)-> bool: 
+    s,d = self.shape.int_tuple, self.stride.int_tuple
+    sf,df = fa.filter_zeros(s,d)
+    sp,dp = fa.squeeze(sf,df)
+    s_, d_ = fa.sort(sp,dp)
+    for i in range(0,len(s_)-1): 
+      if d_[i+1] % (s_[i]*d_[i]) != 0: 
+        return False 
+    
+    return True
   
   def construct_complement(self)->"Layout": 
     assert self.is_complementable(0) == (True,True) 
@@ -110,15 +122,15 @@ class Layout:
     t,e = fa.sort(sp,dp)
     C_shape = [e[0]]
     C_stride = [1]
-    for i in range(1, len(C_stride)): 
+    for i in range(1, len(t)): 
       C_stride.append(t[i-1]*e[i-1])
-      C_shape.append(e[i]//(t[i-i]*e[i-1]))
+      C_shape.append(e[i]//(t[i-1]*e[i-1]))
     flat_profile = Profile(tuple([Profile(Atom.STAR) for _ in range(len(C_stride))]))
     C_shape_nest = NestedTuple(tuple(C_shape), flat_profile)
     C_stride_nest = NestedTuple(tuple(C_stride), flat_profile)
     C_layout = Layout(C_shape_nest, C_stride_nest)
     comp = C_layout.coalesce()
-    return comp 
+    return comp
   
   def construct_N_complement(self, N)->"Layout": 
     assert self.is_complementable(N) == (True,True) 
@@ -127,13 +139,13 @@ class Layout:
     t,e = fa.sort(sp,dp)
     C_shape = [e[0]]
     C_stride = [1]
-    for i in range(1, len(C_stride)): 
+    for i in range(1, len(t)): 
       C_stride.append(t[i-1]*e[i-1])
-      C_shape.append(e[i]//(t[i-i]*e[i-1]))
+      C_shape.append(e[i]//(t[i-1]*e[i-1]))
       
     C_stride.append(t[-1]*e[-1])
     C_shape.append((N//(t[-1]*e[-1])))
-    flat_profile = Profile(tuple([Profile(Atom.STAR) for _ in range(len(C_stride) + 1)]))
+    flat_profile = Profile(tuple([Profile(Atom.STAR) for _ in range(len(C_stride))]))
     C_shape_nest = NestedTuple(tuple(C_shape), flat_profile)
     C_stride_nest = NestedTuple(tuple(C_stride), flat_profile)
     C_layout = Layout(C_shape_nest, C_stride_nest)

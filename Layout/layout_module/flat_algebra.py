@@ -53,6 +53,8 @@ def layout_map(shape:Tuple[int], stride:Tuple[int], idx: int):
 def sort(shape: Tuple[int], stride: Tuple[int]): 
   assert len(shape) == len(stride)
   m = len(shape)
+  shape = list(shape)
+  stride = list(stride)
   for i in range(m): 
     for j in range(i+1, m):
       if stride[i] > stride[j]: 
@@ -77,6 +79,17 @@ def squeeze(shape: Tuple[int], stride: Tuple[int]):
       
   return tuple(new_shape), tuple(new_stride)
 
+def filter_zeros(shape: Tuple[int], stride: Tuple[int]): 
+  assert len(shape) == len(stride)
+  new_shape = []
+  new_stride = []
+  for i in range(len(stride)): 
+    if stride[i] > 0: 
+      new_shape.append(shape[i])
+      new_stride.append(stride[i])
+      
+  return tuple(new_shape), tuple(new_stride)  
+  
 def divides (a:Tuple[int], b:Tuple[int]) -> bool: 
   if len(a) <= len(b): 
     for i in range(len(a)): 
