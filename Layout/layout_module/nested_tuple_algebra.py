@@ -124,15 +124,25 @@ def mutual_refinement(T: NestedTuple, U: NestedTuple):
         else:
             return None
 
-    if X_mode:
-        Xp += (X_mode,)
+   
     if Y_mode:
+        Y_mode += (Y[j],)
         Yp += (Y_mode,)
+        j+= 1
 
     while j < len(Y):
         Yp += (Y[j],)
         j += 1
-
-    return NestedTuple(Xp, T.prof), NestedTuple(Yp, U.prof)
+        
+    #return Xp, Yp
+    X_refined = NestedTuple.from_literal(Xp)
+    Y_refined = NestedTuple.from_literal(Yp)
+    T_prof = T.prof
+    U_prof = U.prof 
+    X_modes = [X_refined.get_mode(i) for i in range(X_refined.rank)]
+    Y_modes = [Y_refined.get_mode(i) for i in range(Y_refined.rank)]
+    X_fin = substitute(T_prof, X_modes)
+    Y_fin = substitute(U_prof, Y_modes)
+    return X_fin, Y_fin
 
       
