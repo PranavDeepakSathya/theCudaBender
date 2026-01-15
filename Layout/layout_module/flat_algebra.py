@@ -5,6 +5,7 @@ from enum import Enum, auto
 from functools import cached_property
 from functools import reduce
 from operator import mul
+from .composition import Flat_tuple_morphism
 
 class Pointed(Enum): 
   astr = auto()
@@ -151,7 +152,7 @@ def flat_layout_to_mor(shape, stride):
             map[i] = len(co_domain) - 1   # map to the s_j slot
             prev_prod = d * s
 
-    return tuple(co_domain), tuple(map)
+    return Flat_tuple_morphism(shape, tuple(co_domain), tuple(map))
 
       
 
