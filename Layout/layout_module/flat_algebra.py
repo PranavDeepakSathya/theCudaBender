@@ -6,6 +6,13 @@ from functools import cached_property
 from functools import reduce
 from operator import mul
 
+class Pointed(Enum): 
+  astr = auto()
+  
+  def __repr__ (self): 
+    return ".*."
+  
+
 def get_col_major_stride(shape: Tuple[int]): 
   col_major = [1]
   for i in range(1, len(shape)): 
@@ -104,3 +111,49 @@ def get_quotient(a:Tuple[int], b:Tuple[int]) -> bool:
   start = a.length 
   return b[start:]
   
+def is_flat_tractable(shape:Tuple[int], stride:Tuple[int]) -> bool: 
+  assert len(shape) == len(stride)
+  sf, df = filter_zeros(shape, stride)
+  sh, dh = sort(sf,df)
+  s,d = squeeze(sh, dh)
+  for i in range(len(s)-1): 
+    if d[i+1] % (s[i]*d[i]) != 0: 
+      return False
+  return True 
+
+
+def flat_layout_to_mor(shape, stride):
+    assert len(shape) == len(stride)
+    assert is_flat_tractable(shape, stride)
+    axes = [
+        (i, shape[i], stride[i])
+        for i in range(len(shape))
+        if stride[i] != 0
+    ]
+
+    axes.sort(key=lambda x: x[2])
+
+    map = [Pointed.astr] * len(shape)
+    co_domain = []
+
+    prev_prod = 1
+
+    for i, s, d in axes:
+        if d == prev_prod:
+            # append (s)
+            co_domain.append(s)
+            map[i] = len(co_domain) - 1
+            prev_prod *= s
+        else:
+            # append (d/prev_prod, s)
+            co_domain.append(d // prev_prod)
+            co_domain.append(s)
+            map[i] = len(co_domain) - 1   # map to the s_j slot
+            prev_prod = d * s
+
+    return tuple(co_domain), tuple(map)
+
+      
+
+    
+    
