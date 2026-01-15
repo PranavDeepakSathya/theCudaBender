@@ -6,7 +6,8 @@ from functools import cached_property
 from functools import reduce
 from operator import mul
 from collections import defaultdict
-from .flat_algebra import Pointed
+from .aster import Pointed
+
 
 class Flat_tuple_morphism: 
   def __init__ (self, domain:Tuple[int], co_domain:Tuple[int], map: Tuple[int|Pointed]): 

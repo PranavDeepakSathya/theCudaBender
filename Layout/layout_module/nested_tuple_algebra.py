@@ -9,6 +9,7 @@ from .nested_tuple import NestedTuple
 from .profile import Profile, Atom 
 from . import flat_algebra as fa
 
+
 def refines(a:NestedTuple,b:NestedTuple):
   assert isinstance(a, NestedTuple) and isinstance(b, NestedTuple)
   
@@ -81,68 +82,68 @@ def substitute(
 
 
 def mutual_refinement(T: NestedTuple, U: NestedTuple):
-    X = list(T.int_tuple)
-    Y = list(U.int_tuple)
+  X = list(T.int_tuple)
+  Y = list(U.int_tuple)
 
-    Xp, Yp = (), ()
-    X_mode, Y_mode = (), ()
-    i,j = 0,0
+  Xp, Yp = (), ()
+  X_mode, Y_mode = (), ()
+  i,j = 0,0
 
-    while i < len(X) and j < len(Y):
-        xi, yj = X[i], Y[j]
+  while i < len(X) and j < len(Y):
+    xi, yj = X[i], Y[j]
 
-        if xi == yj:
-            X_mode += (xi,)
-            Xp += (X_mode,)
-            X_mode = ()
+    if xi == yj:
+      X_mode += (xi,)
+      Xp += (X_mode,)
+      X_mode = ()
 
-            Y_mode += (yj,)
-            Yp += (Y_mode,)
-            Y_mode = ()
+      Y_mode += (yj,)
+      Yp += (Y_mode,)
+      Y_mode = ()
 
-            i += 1
-            j += 1
+      i += 1
+      j += 1
 
-        elif yj % xi == 0:
-            X_mode += (xi,)
-            Xp += (X_mode,)
-            X_mode = ()
+    elif yj % xi == 0:
+      X_mode += (xi,)
+      Xp += (X_mode,)
+      X_mode = ()
 
-            Y_mode += (xi,)
-            Y[j] = yj // xi
-            i += 1
+      Y_mode += (xi,)
+      Y[j] = yj // xi
+      i += 1
 
-        elif xi % yj == 0:
-            Y_mode += (yj,)
-            Yp += (Y_mode,)
-            Y_mode = ()
+    elif xi % yj == 0:
+      Y_mode += (yj,)
+      Yp += (Y_mode,)
+      Y_mode = ()
 
-            X_mode += (yj,)
-            X[i] = xi // yj
-            j += 1
+      X_mode += (yj,)
+      X[i] = xi // yj
+      j += 1
 
-        else:
-            return None
+    else:
+      return None
 
-   
-    if Y_mode:
-        Y_mode += (Y[j],)
-        Yp += (Y_mode,)
-        j+= 1
+  
+  if Y_mode:
+    Y_mode += (Y[j],)
+    Yp += (Y_mode,)
+    j+= 1
 
-    while j < len(Y):
-        Yp += (Y[j],)
-        j += 1
-        
-    #return Xp, Yp
-    X_refined = NestedTuple.from_literal(Xp)
-    Y_refined = NestedTuple.from_literal(Yp)
-    T_prof = T.prof
-    U_prof = U.prof 
-    X_modes = [X_refined.get_mode(i) for i in range(X_refined.rank)]
-    Y_modes = [Y_refined.get_mode(i) for i in range(Y_refined.rank)]
-    X_fin = substitute(T_prof, X_modes)
-    Y_fin = substitute(U_prof, Y_modes)
-    return X_fin, Y_fin
+  while j < len(Y):
+    Yp += (Y[j],)
+    j += 1
+      
+  #return Xp, Yp
+  X_refined = NestedTuple.from_literal(Xp)
+  Y_refined = NestedTuple.from_literal(Yp)
+  T_prof = T.prof
+  U_prof = U.prof 
+  X_modes = [X_refined.get_mode(i) for i in range(X_refined.rank)]
+  Y_modes = [Y_refined.get_mode(i) for i in range(Y_refined.rank)]
+  X_fin = substitute(T_prof, X_modes)
+  Y_fin = substitute(U_prof, Y_modes)
+  return X_fin, Y_fin
 
       

@@ -7,11 +7,7 @@ from functools import reduce
 from operator import mul
 from .composition import Flat_tuple_morphism
 
-class Pointed(Enum): 
-  astr = auto()
-  
-  def __repr__ (self): 
-    return ".*."
+from .aster import Pointed
   
 
 def get_col_major_stride(shape: Tuple[int]): 
