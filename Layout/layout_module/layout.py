@@ -23,6 +23,20 @@ class Layout:
     assert isinstance(self.shape, NestedTuple)
     assert isinstance(self.stride, NestedTuple)
     assert self.shape.prof == self.stride.prof
+    shape_vals = self.shape.int_tuple
+    stride_vals = self.stride.int_tuple
+
+    new_stride_vals = tuple(
+        0 if s == 1 else d
+        for s, d in zip(shape_vals, stride_vals)
+    )
+
+    if new_stride_vals != stride_vals:
+        object.__setattr__(
+            self,
+            "stride",
+            NestedTuple(new_stride_vals, self.stride.prof)
+        )
     
     
   def get_mode(self, i:int)->"Layout": 
@@ -40,7 +54,6 @@ class Layout:
     return Layout(self.shape.flatten(), self.stride.flatten())
   
   
- 
   def coalesce(self) -> "Layout":
     Lf = self.flatten()
 
