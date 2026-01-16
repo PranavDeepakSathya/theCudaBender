@@ -18,4 +18,7 @@ def to_layout(X,canonicize = True):
     
   shape = NestedTuple(s,prof)
   stride = NestedTuple(d, prof)
-  return Layout(shape, stride)
+  
+  L = Layout(shape, stride)
+  if canonicize:
+    return (L.squeeze()).filter_zeros()

@@ -167,7 +167,43 @@ class Layout:
     return comp 
   
 
-  
+  def squeeze(self) -> "Layout":
+    shape_vals = self.shape.int_tuple
+    stride_vals = self.stride.int_tuple
+
+    mask = [s != 1 for s in shape_vals]
+
+    new_shape_vals = tuple(s for s, m in zip(shape_vals, mask) if m)
+    new_stride_vals = tuple(d for d, m in zip(stride_vals, mask) if m)
+
+    if len(new_shape_vals) == len(shape_vals):
+        return self  # nothing to do
+
+    new_prof = filter_profile_by_mask(self.shape.prof, mask)
+
+    return Layout(
+        NestedTuple(new_shape_vals, new_prof),
+        NestedTuple(new_stride_vals, new_prof),
+    )
+
+  def filter_zeros(self) -> "Layout":
+    shape_vals = self.shape.int_tuple
+    stride_vals = self.stride.int_tuple
+
+    mask = [d != 0 for d in stride_vals]
+
+    new_shape_vals = tuple(s for s, m in zip(shape_vals, mask) if m)
+    new_stride_vals = tuple(d for d, m in zip(stride_vals, mask) if m)
+
+    if len(new_stride_vals) == len(stride_vals):
+        return self  # nothing to do
+
+    new_prof = filter_profile_by_mask(self.shape.prof, mask)
+
+    return Layout(
+        NestedTuple(new_shape_vals, new_prof),
+        NestedTuple(new_stride_vals, new_prof),
+    )
     
   
   @property
@@ -199,4 +235,43 @@ class Layout:
 
 
     
-    
+def filter_profile_by_mask(prof: Profile, mask: list[bool]) -> Profile:
+    """
+    Remove atoms from prof according to flat mask.
+    mask is consumed left-to-right in flat order.
+    """
+
+    assert prof.length == len(mask)
+    idx = 0
+
+    def walk(p: Profile):
+        nonlocal idx
+
+        if p.is_atom():
+            keep = mask[idx]
+            idx += 1
+            return Profile(Atom.STAR) if keep else None
+
+        if p.is_empty():
+            return p
+
+        # tuple profile
+        out = []
+        for q in p.value:
+            r = walk(q)
+            if r is None or r.is_empty():
+                continue
+            out.append(r)
+
+        if not out:
+            return Profile(())
+
+        if len(out) == 1:
+            return out[0]
+
+        return Profile(tuple(out))
+
+    result = walk(prof)
+    assert idx == len(mask)
+
+    return result if result is not None else Profile(())
