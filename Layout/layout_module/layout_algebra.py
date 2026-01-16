@@ -58,7 +58,7 @@ def divide (A:Layout, B:Layout):
   #assert B_mor.co_domain == A_mor.domain
   B_comp = B.construct_N_complement(A.size)
   cat = concatenate([B,B_comp])
-  return compose(cat, A)
+  return to_layout(compose(cat, A))
 
 def product(A:Layout, B:Layout): 
   A_c = A.construct_N_complement(A.size*B.cosize)
