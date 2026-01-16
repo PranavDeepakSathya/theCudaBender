@@ -13,6 +13,7 @@ from .profile import Profile,Atom
 from . import nested_tuple_algebra as na
 from .import flat_algebra as fa 
 
+
 @dataclass(frozen=True)
 class Layout:
   shape: NestedTuple
@@ -152,6 +153,9 @@ class Layout:
     comp = C_layout.coalesce()
     return comp 
   
+
+  
+    
   
   @property
   def rank(self) -> int:

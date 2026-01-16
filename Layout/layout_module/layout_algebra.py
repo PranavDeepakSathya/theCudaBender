@@ -12,6 +12,7 @@ from .profile import Profile,Atom
 from . import nested_tuple_algebra as na
 from .import flat_algebra as fa 
 from .layout import Layout
+from .composition import nested_tuple_morphism, just_compose, compose_morphism
 
 
 
@@ -43,3 +44,11 @@ def get_refine_relative_mode(layout:Layout, coal_shape: NestedTuple,i:int) -> "L
   N = coal_shape.get_prefix_length(j) 
   return get_refine_relative_mode(layout.get_mode(j), coal_shape.get_mode(j), i-N)
   
+def construct_morphism(A:Layout)->nested_tuple_morphism: 
+  assert A.is_tractable()
+  flat_mor = fa.flat_layout_to_mor(A.shape.int_tuple, A.stride.int_tuple)
+  return nested_tuple_morphism(A.shape, NestedTuple.from_literal(flat_mor.co_domain), flat_mor.map)
+
+def compose (A:Layout, B:Layout):
+  A_mor,B_mor = construct_morphism(A), construct_morphism(B)
+  return compose_morphism(A_mor,B_mor)

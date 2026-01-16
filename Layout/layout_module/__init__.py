@@ -3,4 +3,5 @@ from .nested_tuple import NestedTuple
 from . import flat_algebra, nested_tuple_algebra, layout_algebra
 from .layout import Layout
 from .aster import Pointed
-from .composition import Flat_tuple_morphism, nested_tuple_morphism
+from .composition import Flat_tuple_morphism, nested_tuple_morphism, just_compose, compose_morphism
+

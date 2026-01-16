@@ -11,6 +11,7 @@ from .nested_tuple import NestedTuple
 from . import nested_tuple_algebra as na
 import matplotlib.pyplot as plt
 
+
 class Flat_tuple_morphism: 
   def __init__ (self, domain:Tuple[int], co_domain:Tuple[int], map: Tuple[int|Pointed]): 
     self.m = len(domain)
@@ -30,6 +31,7 @@ class Flat_tuple_morphism:
     self.map = map
     self.domain = domain 
     self.co_domain = co_domain
+    self.preimg = pre_img_dict
       
   def __repr__(self):
     return (
@@ -131,86 +133,106 @@ class nested_tuple_morphism:
         mode = refined_co_domain_rel_flat.get_mode(alph_i)
         N = refined_co_domain_rel_flat.get_prefix_length(alph_i)
         l = mode.length
-        refined_morphism += [N + i for i in range(l)]
+        refined_morphism += [N + k for k in range(l)]
         
     return nested_tuple_morphism(refined_domain, refined_co_domain, tuple(refined_morphism))
     
+  def make_pushforward(self, refined_domain:NestedTuple): 
+    assert na.refines(refined_domain, self.domain) == True 
+    refined_domain_rel_flat = na.get_refine_relative_flatten(refined_domain, self.domain)
+    refined_co_domain_modes = [None]*self.co_domain.length
+    
+    for j in range(self.co_domain.length): 
+      pre_j = self.morphism.preimg[j]
+      if not pre_j: 
+        refined_co_domain_modes[j] = self.co_domain.get_entry(j)
+      else: 
+        refined_co_domain_modes[j] = refined_domain_rel_flat.get_mode(pre_j[0])
+      
+    refined_morphism = []
+    refined_co_domain = na.substitute(self.co_domain.prof, refined_co_domain_modes)
+    refined_co_domain_rel_flat = na.get_refine_relative_flatten(refined_co_domain, self.co_domain)
+    for i in range(refined_domain_rel_flat.rank):
+      alph_i = self.morphism.map[i]
+      d_mode = refined_domain_rel_flat.get_mode(i)
+      if alph_i == Pointed.astr: 
+        refined_morphism += [Pointed.astr]*d_mode.length 
+      else: 
+        cd_mode = refined_co_domain_rel_flat.get_mode(alph_i)
+        alph_N = refined_co_domain_rel_flat.get_prefix_length(alph_i)
+        refined_morphism += [alph_N + k for k in range(cd_mode.length)]
+        
+    return nested_tuple_morphism(refined_domain, refined_co_domain, tuple(refined_morphism))
+        
+
+        
       
   
-  def _draw_bracket(self, ax, x, y0, y1, width=0.15, lw=1.2):
-    # vertical line
-    ax.plot([x, x], [y0, y1], linewidth=lw)
-    # top hook
-    ax.plot([x, x + width], [y1, y1], linewidth=lw)
-    # bottom hook
-    ax.plot([x, x + width], [y0, y0], linewidth=lw)
-
-  def _draw_nested_brackets(self, ax, nt: NestedTuple, x, y_offset=0):
+  def _draw_profile(self, ax, prof, x0, y0, scale=0.6, depth=0):
     """
-    Draw brackets for a NestedTuple using its modes.
-    Returns total flattened height (= nt.length).
+    Draws the Profile as vertical nested brackets.
+    Returns next y position.
     """
-    # base case: atomic profile
-    if nt.prof.is_atom():
-        return 1
+    if prof.is_atom():
+        return y0 + 1
 
-    start = y_offset
-    current = y_offset
+    start = y0
+    cur = y0
 
-    for i in range(nt.rank):
-        mode = nt.get_mode(i)
-        h = self._draw_nested_brackets(ax, mode, x, current)
-        current += h
+    for sub in prof.value:
+        cur = self._draw_profile(ax, sub, x0, cur, scale, depth + 1)
 
-    end = current - 1
-    self._draw_bracket(ax, x, start, end)
-    return current - y_offset
+    end = cur - 1
 
-  
+    x = x0 + depth * scale
+    ax.plot([x, x], [start, end], lw=2)
+    ax.plot([x, x + 0.2], [start, start], lw=2)
+    ax.plot([x, x + 0.2], [end, end], lw=2)
+
+    return cur
+
+
+
   def draw(self):
-    
+    import matplotlib.pyplot as plt
 
     S = self.domain.int_tuple
     T = self.co_domain.int_tuple
     a = self.morphism.map
 
-    m = len(S)
-    n = len(T)
+    m, n = len(S), len(T)
 
-    fig, ax = plt.subplots(figsize=(4, max(m, n) * 0.6))
+    fig, ax = plt.subplots(figsize=(5, max(m, n) * 0.6))
 
-    xS = 0
-    xT = 3
-    xSb = -0.6
-    xTb = 2.4
+    xS, xT = 1.5, 6.0
 
-    yS = list(range(m))
-    yT = list(range(n))
+    # draw profiles
+    self._draw_profile(ax, self.domain.prof, xS - 1.0, 0)
+    self._draw_profile(ax, self.co_domain.prof, xT - 1.0, 0)
 
-    for i, y in enumerate(yS):
-        ax.text(xS, y, str(S[i]), ha="center", va="center")
+    # draw entries
+    for i, v in enumerate(S):
+        ax.text(xS, i, str(v), ha="center", va="center")
 
-    for j, y in enumerate(yT):
-        ax.text(xT, y, str(T[j]), ha="center", va="center")
+    for j, v in enumerate(T):
+        ax.text(xT, j, str(v), ha="center", va="center")
 
-    pad = 0.25
+    # arrows (unchanged, clean)
     for i, v in enumerate(a):
         if v != Pointed.astr:
             ax.annotate(
                 "",
-                xy=(xT - pad, yT[v]),
-                xytext=(xS + pad, yS[i]),
-                arrowprops=dict(arrowstyle="->", linewidth=1.5),
+                xy=(xT - 0.3, v),
+                xytext=(xS + 0.3, i),
+                arrowprops=dict(arrowstyle="->", lw=1.5),
             )
 
-    # structure
-    self._draw_nested_brackets(ax, self.domain, xSb)
-    self._draw_nested_brackets(ax, self.co_domain, xTb)
-
-    ax.set_xlim(-1.2, 3.2)
+    ax.set_xlim(0, 7)
     ax.set_ylim(-0.5, max(m, n) - 0.5)
     ax.axis("off")
     plt.show()
+
+
 
   def __repr__(self):
     return (
@@ -220,3 +242,35 @@ class nested_tuple_morphism:
         f"map={self.morphism.map}"
         f")"
     )
+
+def just_compose(ref_mor_1:nested_tuple_morphism, ref_mor_2:nested_tuple_morphism): 
+  composed_map = []
+  for i in range(ref_mor_1.domain.length): 
+    alph_i = ref_mor_1.morphism.map[i]
+    if alph_i == Pointed.astr: 
+      composed_map.append(Pointed.astr)
+    else: 
+      v1_cd = ref_mor_1.co_domain.get_entry(alph_i)
+      v2_d = ref_mor_2.domain.get_entry(alph_i)
+      if v1_cd != v2_d: 
+        return None 
+      else: 
+        beta_after_alph_i = ref_mor_2.morphism.map[alph_i]
+        if beta_after_alph_i == Pointed.astr: 
+          composed_map.append(Pointed.astr)
+        else: 
+          v2_cd = ref_mor_2.co_domain.get_entry(beta_after_alph_i)
+          if v2_d != v2_cd: 
+            return None 
+          else: 
+            composed_map.append(beta_after_alph_i)
+            
+  return nested_tuple_morphism(ref_mor_1.domain, ref_mor_2.co_domain, tuple(composed_map))
+
+def compose_morphism(mor1:nested_tuple_morphism, mor2: nested_tuple_morphism): 
+  ref_mor1_cd, ref_mor2_d = na.mutual_refinement(mor1.co_domain, mor2.domain)
+  ref_mor1 = mor1.make_pullback(ref_mor1_cd)
+  ref_mor2 = mor2.make_pushforward(ref_mor2_d)
+  return just_compose(ref_mor1, ref_mor2)
+
+    
