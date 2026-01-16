@@ -13,7 +13,7 @@ from . import nested_tuple_algebra as na
 from .import flat_algebra as fa 
 from .layout import Layout
 from .composition import nested_tuple_morphism, just_compose, compose_morphism
-
+from .to_layout import to_layout
 
 
 
@@ -59,3 +59,8 @@ def divide (A:Layout, B:Layout):
   B_comp = B.construct_N_complement(A.size)
   cat = concatenate([B,B_comp])
   return compose(cat, A)
+
+def product(A:Layout, B:Layout): 
+  A_c = A.construct_N_complement(A.size*B.cosize)
+  cat = concatenate([A, to_layout(compose(B,A_c))])
+  return cat
