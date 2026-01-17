@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tensor Coordinate Mapping Visualizer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a25;
+            --accent-cyan: #00f5d4;
+            --accent-magenta: #f72585;
+            --accent-yellow: #fee440;
+            --accent-blue: #4361ee;
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --border-color: #2a2a3a;
+        }
+        
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            height: 100vh;
+        }
+        
+        .canvas-container {
+            position: relative;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #0f0f18 100%);
+        }
+        
+        #three-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .sidebar {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .panel {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .panel-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent-cyan);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .panel-title::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--accent-cyan);
+            border-radius: 2px;
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+        
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        
+        .c-grid-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .c-grid-wrapper {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 8px;
+            background: var(--bg-primary);
+            padding: 12px;
+        }
+        
+        .c-grid {
+            display: grid;
+            grid-template-columns: 30px repeat(4, 1fr);
+            gap: 2px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+        }
+        
+        .c-header {
+            background: var(--bg-tertiary);
+            padding: 6px 4px;
+            text-align: center;
+            color: var(--accent-yellow);
+            font-weight: 600;
+            border-radius: 4px;
+        }
+        
+        .c-row-label {
+            background: var(--bg-tertiary);
+            padding: 6px 4px;
+            text-align: center;
+            color: var(--accent-blue);
+            font-weight: 600;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .c-cell {
+            background: var(--bg-secondary);
+            padding: 8px 4px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+        }
+        
+        .c-cell:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--accent-cyan);
+            color: var(--text-primary);
+            transform: scale(1.05);
+        }
+        
+        .c-cell.selected {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+            font-weight: 600;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 12px rgba(0, 245, 212, 0.4);
+        }
+        
+        .mapping-info {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+        }
+        
+        .mapping-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .color-swatch {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        
+        .mapping-coords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            flex: 1;
+        }
+        
+        .coord-badge {
+            padding: 4px 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            font-size: 10px;
+        }
+        
+        .coord-badge.a {
+            border-left: 3px solid var(--accent-magenta);
+        }
+        
+        .coord-badge.b {
+            border-left: 3px solid var(--accent-blue);
+        }
+        
+        .legend {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+        
+        .legend-box {
+            width: 24px;
+            height: 16px;
+            border-radius: 3px;
+            border: 2px solid;
+        }
+        
+        .legend-box.tensor-a {
+            border-color: var(--accent-magenta);
+            background: rgba(247, 37, 133, 0.1);
+        }
+        
+        .legend-box.tensor-b {
+            border-color: var(--accent-blue);
+            background: rgba(67, 97, 238, 0.1);
+        }
+        
+        .legend-box.tensor-c {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 245, 212, 0.1);
+        }
+        
+        .instructions {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        
+        .instructions strong {
+            color: var(--accent-yellow);
+        }
+        
+        .axis-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+        }
+        
+        .axis-item {
+            text-align: center;
+            padding: 8px;
+            background: var(--bg-primary);
+            border-radius: 6px;
+        }
+        
+        .axis-label {
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        
+        .axis-value {
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+        
+        .no-selection {
+            color: var(--text-secondary);
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="canvas-container">
+            <canvas id="three-canvas"></canvas>
+        </div>
+        <div class="sidebar">
+            <div class="panel">
+                <h1>Tensor Mapper</h1>
+                <p class="subtitle">Interactive visualization of coordinate mappings between tensors A(32,4,2), B(32,2,2), and C(32,4)</p>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">Legend</div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-box tensor-a"></div>
+                        <span>Tensor A (left)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-box tensor-b"></div>
+                        <span>Tensor B (top)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-box tensor-c"></div>
+                        <span>Tensor C (center)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">Axes Reference</div>
+                <div class="axis-info">
+                    <div class="axis-item">
+                        <div class="axis-label">Down (Y-)</div>
+                        <div class="axis-value">lane_id</div>
+                    </div>
+                    <div class="axis-item">
+                        <div class="axis-label">Right (X+)</div>
+                        <div class="axis-value">reg_id</div>
+                    </div>
+                    <div class="axis-item">
+                        <div class="axis-label">Forward (Z+)</div>
+                        <div class="axis-value">pack</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">Select C Tile</div>
+                <div class="instructions">
+                    <strong>Click</strong> on a cell below to see the mapped coordinates in A and B tensors.
+                </div>
+                <div class="c-grid-container">
+                    <div class="c-grid-wrapper">
+                        <div class="c-grid" id="c-grid">
+                            <!-- Generated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">Coordinate Mappings</div>
+                <div class="mapping-info" id="mapping-info">
+                    <div class="no-selection">Click a C tile to view mappings</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // ============================================
+        // COORDINATE MAPPING FUNCTIONS
+        // ============================================
+        function generateInvMapByK(k, lc, rc) {
+            const la = Math.floor(k / 4) + 4 * Math.floor(lc / 4);
+            const lb = Math.floor(k / 4) + 8 * (lc % 4) + 4 * (rc % 2);
+            const ra = 2 * (Math.floor(k / 2) % 2) + Math.floor(rc / 2);
+            const rb = Math.floor(k / 2) % 2;
+            const pa = k % 2;
+            const pb = k % 2;
+            return [[la, ra, pa], [lb, rb, pb]];
+        }
+
+        function generateInvMap(lc, rc) {
+            const resultSet = new Map();
+            for (let k = 0; k < 16; k++) {
+                const pair = generateInvMapByK(k, lc, rc);
+                const key = JSON.stringify(pair);
+                if (!resultSet.has(key)) {
+                    resultSet.set(key, pair);
+                }
+            }
+            return Array.from(resultSet.values());
+        }
+
+        // ============================================
+        // THREE.JS SETUP
+        // ============================================
+        const canvas = document.getElementById('three-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setClearColor(0x0a0a0f);
+
+        const scene = new THREE.Scene();
+        
+        // Add fog for depth
+        scene.fog = new THREE.Fog(0x0a0a0f, 100, 400);
+
+        const camera = new THREE.PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+        // Position camera to see from front-right-top angle
+        camera.position.set(110, 40, 160);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.target.set(0, -40, 10);
+
+        // ============================================
+        // TENSOR CELL CLASSES
+        // ============================================
+        // FIX 1: Increased cell size and gap for more spacious layout
+        const CELL_SIZE = 2.2;
+        const CELL_GAP = 0.7;
+        const CELL_TOTAL = CELL_SIZE + CELL_GAP;
+
+        // Color palette for pair highlighting
+        const PAIR_COLORS = [
+            0xff6b6b, 0x4ecdc4, 0xffe66d, 0x95e1d3,
+            0xf38181, 0xaa96da, 0xfcbad3, 0xa8e6cf,
+            0xdfe6e9, 0x74b9ff, 0x55efc4, 0xffeaa7,
+            0xfd79a8, 0x00cec9, 0xe17055, 0x6c5ce7
+        ];
+
+        // FIX 4: TensorCell now has both wireframe AND solid fill mesh
+        class TensorCell {
+            constructor(x, y, z, defaultColor, parentGroup) {
+                this.defaultColor = defaultColor;
+                this.position = { x, y, z };
+                
+                // Wireframe mesh (always visible)
+                const geometry = new THREE.BoxGeometry(CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                const edges = new THREE.EdgesGeometry(geometry);
+                this.wireMaterial = new THREE.LineBasicMaterial({ 
+                    color: defaultColor,
+                    transparent: true,
+                    opacity: 0.4
+                });
+                this.wireMesh = new THREE.LineSegments(edges, this.wireMaterial);
+                this.wireMesh.position.set(x, y, z);
+                
+                // Solid fill mesh (hidden by default, shown on highlight)
+                this.solidMaterial = new THREE.MeshBasicMaterial({
+                    color: defaultColor,
+                    transparent: true,
+                    opacity: 0
+                });
+                this.solidMesh = new THREE.Mesh(geometry, this.solidMaterial);
+                this.solidMesh.position.set(x, y, z);
+                
+                parentGroup.add(this.wireMesh);
+                parentGroup.add(this.solidMesh);
+            }
+
+            highlight(color) {
+                // Make wireframe bright
+                this.wireMaterial.color.setHex(color);
+                this.wireMaterial.opacity = 1;
+                // Show solid fill
+                this.solidMaterial.color.setHex(color);
+                this.solidMaterial.opacity = 0.7;
+            }
+
+            reset() {
+                // Reset wireframe to default
+                this.wireMaterial.color.setHex(this.defaultColor);
+                this.wireMaterial.opacity = 0.4;
+                // Hide solid fill
+                this.solidMaterial.opacity = 0;
+            }
+        }
+
+        // ============================================
+        // CREATE AXIS ARROWS AND LABELS
+        // ============================================
+        function createAxisArrow(from, to, color) {
+            const direction = new THREE.Vector3().subVectors(to, from).normalize();
+            const length = from.distanceTo(to);
+            const arrowHelper = new THREE.ArrowHelper(direction, from, length, color, 2, 1);
+            return arrowHelper;
+        }
+
+        function createTextSprite(text, color = 0xffffff, size = 48) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 256;
+            canvas.height = 64;
+            
+            ctx.fillStyle = 'transparent';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.font = `bold ${size}px JetBrains Mono, monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            
+            const material = new THREE.SpriteMaterial({ 
+                map: texture,
+                transparent: true
+            });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(10, 2.5, 1);
+            return sprite;
+        }
+
+        // ============================================
+        // CREATE TENSORS
+        // ============================================
+        const tensorA = { cells: [], group: new THREE.Group() };
+        const tensorB = { cells: [], group: new THREE.Group() };
+        const tensorC = { cells: [], group: new THREE.Group() };
+
+        // FIX 3: New layout - A, B, C on the same horizontal plane
+        // A is left of C, B is right of C, all share the same Y origin
+        // Also: (0,0,0) starts at top-left, so lane_id increases downward (negative Y)
+
+        // Tensor A: (32, 4, 2) - lane_id, reg_id, pack
+        // Positioned to the LEFT of C
+        const A_DIMS = { lane: 32, reg: 4, pack: 2 };
+        const A_COLOR = 0xf72585;
+        // A is placed to the left of C: negative X offset
+        const A_OFFSET = { 
+            x: -(A_DIMS.reg * CELL_TOTAL) - 10, // Left of C with gap
+            y: 0, 
+            z: 0 
+        };
+
+        for (let lane = 0; lane < A_DIMS.lane; lane++) {
+            tensorA.cells[lane] = [];
+            for (let reg = 0; reg < A_DIMS.reg; reg++) {
+                tensorA.cells[lane][reg] = [];
+                for (let pack = 0; pack < A_DIMS.pack; pack++) {
+                    // reg_id increases to the right (positive X)
+                    const x = A_OFFSET.x + reg * CELL_TOTAL;
+                    // lane_id increases downward (negative Y) - FIX 3: top-left origin
+                    const y = A_OFFSET.y - lane * CELL_TOTAL;
+                    // pack increases in depth (positive Z)
+                    const z = A_OFFSET.z + pack * CELL_TOTAL;
+                    const cell = new TensorCell(x, y, z, A_COLOR, tensorA.group);
+                    tensorA.cells[lane][reg][pack] = cell;
+                }
+            }
+        }
+
+        // Tensor C: (32, 4) - displayed as 2D grid
+        // Positioned at center, between A (left) and B (right)
+        const C_DIMS = { lane: 32, reg: 4 };
+        const C_COLOR = 0x00f5d4;
+
+        // Tensor B: (32, 2, 2) - lane_id, reg_id, pack
+        // Positioned to the RIGHT of C on the same horizontal plane
+        const B_DIMS = { lane: 32, reg: 2, pack: 2 };
+        const B_COLOR = 0x4361ee;
+        // B is placed to the right of C with a gap
+        const B_OFFSET = { 
+            x: (C_DIMS.reg * CELL_TOTAL) + 10, 
+            y: 0, 
+            z: 0 
+        };
+
+        for (let lane = 0; lane < B_DIMS.lane; lane++) {
+            tensorB.cells[lane] = [];
+            for (let reg = 0; reg < B_DIMS.reg; reg++) {
+                tensorB.cells[lane][reg] = [];
+                for (let pack = 0; pack < B_DIMS.pack; pack++) {
+                    const x = B_OFFSET.x + reg * CELL_TOTAL;
+                    // lane_id increases downward (negative Y)
+                    const y = B_OFFSET.y - lane * CELL_TOTAL;
+                    const z = B_OFFSET.z + pack * CELL_TOTAL;
+                    const cell = new TensorCell(x, y, z, B_COLOR, tensorB.group);
+                    tensorB.cells[lane][reg][pack] = cell;
+                }
+            }
+        }
+
+        const C_OFFSET = { 
+            x: 0, 
+            y: 0, 
+            z: 0 
+        };
+
+        for (let lane = 0; lane < C_DIMS.lane; lane++) {
+            tensorC.cells[lane] = [];
+            for (let reg = 0; reg < C_DIMS.reg; reg++) {
+                const x = C_OFFSET.x + reg * CELL_TOTAL;
+                // lane_id increases downward (negative Y)
+                const y = C_OFFSET.y - lane * CELL_TOTAL;
+                const z = C_OFFSET.z;
+                const cell = new TensorCell(x, y, z, C_COLOR, tensorC.group);
+                tensorC.cells[lane][reg] = cell;
+            }
+        }
+
+        scene.add(tensorA.group);
+        scene.add(tensorB.group);
+        scene.add(tensorC.group);
+
+        // ============================================
+        // FIX 2: PROPER AXIS LABELS (perpendicular)
+        // ============================================
+        
+        // Helper to add axis with arrows at each tensor
+        function addTensorAxes(offset, dims, tensorName, color, hasPack = true) {
+            const axisLength = 8;
+            const labelOffset = 3;
+            
+            // Calculate start position (top-left-front corner of tensor)
+            const startX = offset.x - CELL_SIZE/2 - 2;
+            const startY = offset.y + CELL_SIZE/2 + 2;
+            const startZ = offset.z - CELL_SIZE/2 - 2;
+            
+            // Tensor name label
+            const nameLabel = createTextSprite(tensorName, color, 56);
+            nameLabel.position.set(
+                offset.x + (dims.reg * CELL_TOTAL) / 2 - CELL_TOTAL/2,
+                startY + 5,
+                offset.z
+            );
+            scene.add(nameLabel);
+            
+            // X-axis (reg_id) - pointing RIGHT
+            const xArrow = createAxisArrow(
+                new THREE.Vector3(startX, startY, startZ),
+                new THREE.Vector3(startX + axisLength, startY, startZ),
+                0xfee440
+            );
+            scene.add(xArrow);
+            
+            const xLabel = createTextSprite('reg_id', 0xfee440, 40);
+            xLabel.position.set(startX + axisLength + labelOffset, startY, startZ);
+            scene.add(xLabel);
+            
+            // Y-axis (lane_id) - pointing DOWN (negative Y)
+            const yArrow = createAxisArrow(
+                new THREE.Vector3(startX, startY, startZ),
+                new THREE.Vector3(startX, startY - axisLength, startZ),
+                0xff6b6b
+            );
+            scene.add(yArrow);
+            
+            const yLabel = createTextSprite('lane_id', 0xff6b6b, 40);
+            yLabel.position.set(startX, startY - axisLength - labelOffset, startZ);
+            scene.add(yLabel);
+            
+            // Z-axis (pack) - pointing FORWARD (positive Z) - only for 3D tensors
+            if (hasPack) {
+                const zArrow = createAxisArrow(
+                    new THREE.Vector3(startX, startY, startZ),
+                    new THREE.Vector3(startX, startY, startZ + axisLength),
+                    0x74b9ff
+                );
+                scene.add(zArrow);
+                
+                const zLabel = createTextSprite('pack', 0x74b9ff, 40);
+                zLabel.position.set(startX, startY, startZ + axisLength + labelOffset);
+                scene.add(zLabel);
+            }
+        }
+
+        // Add axes to each tensor
+        addTensorAxes(A_OFFSET, A_DIMS, 'Tensor A', 0xf72585, true);
+        addTensorAxes(B_OFFSET, B_DIMS, 'Tensor B', 0x4361ee, true);
+        addTensorAxes(C_OFFSET, C_DIMS, 'Tensor C', 0x00f5d4, false);
+
+        // ============================================
+        // GRID HELPER
+        // ============================================
+        const gridHelper = new THREE.GridHelper(260, 60, 0x2a2a3a, 0x1a1a25);
+        gridHelper.position.y = C_OFFSET.y - (C_DIMS.lane * CELL_TOTAL) - 8;
+        scene.add(gridHelper);
+
+        // ============================================
+        // LIGHTING
+        // ============================================
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        // ============================================
+        // C GRID UI
+        // ============================================
+        const cGridEl = document.getElementById('c-grid');
+        const mappingInfoEl = document.getElementById('mapping-info');
+
+        // Create header row
+        const cornerCell = document.createElement('div');
+        cornerCell.className = 'c-header';
+        cornerCell.textContent = '';
+        cGridEl.appendChild(cornerCell);
+
+        for (let reg = 0; reg < C_DIMS.reg; reg++) {
+            const header = document.createElement('div');
+            header.className = 'c-header';
+            header.textContent = `r${reg}`;
+            cGridEl.appendChild(header);
+        }
+
+        // Create data rows
+        let selectedCell = null;
+
+        for (let lane = 0; lane < C_DIMS.lane; lane++) {
+            const rowLabel = document.createElement('div');
+            rowLabel.className = 'c-row-label';
+            rowLabel.textContent = lane;
+            cGridEl.appendChild(rowLabel);
+            
+            for (let reg = 0; reg < C_DIMS.reg; reg++) {
+                const cell = document.createElement('div');
+                cell.className = 'c-cell';
+                cell.textContent = `${lane},${reg}`;
+                cell.dataset.lane = lane;
+                cell.dataset.reg = reg;
+                cell.addEventListener('click', () => selectCCell(lane, reg, cell));
+                cGridEl.appendChild(cell);
+            }
+        }
+
+        function selectCCell(lc, rc, cellEl) {
+            // Reset previous selection
+            resetAllHighlights();
+            
+            if (selectedCell) {
+                selectedCell.classList.remove('selected');
+            }
+            
+            selectedCell = cellEl;
+            cellEl.classList.add('selected');
+            
+            // Highlight C cell in 3D
+            tensorC.cells[lc][rc].highlight(0x00f5d4);
+            
+            // Get mappings
+            const mappings = generateInvMap(lc, rc);
+            
+            // Display mappings and highlight
+            displayMappings(mappings);
+            highlightMappings(mappings);
+        }
+
+        function resetAllHighlights() {
+            // Reset A
+            for (let l = 0; l < A_DIMS.lane; l++) {
+                for (let r = 0; r < A_DIMS.reg; r++) {
+                    for (let p = 0; p < A_DIMS.pack; p++) {
+                        tensorA.cells[l][r][p].reset();
+                    }
+                }
+            }
+            // Reset B
+            for (let l = 0; l < B_DIMS.lane; l++) {
+                for (let r = 0; r < B_DIMS.reg; r++) {
+                    for (let p = 0; p < B_DIMS.pack; p++) {
+                        tensorB.cells[l][r][p].reset();
+                    }
+                }
+            }
+            // Reset C
+            for (let l = 0; l < C_DIMS.lane; l++) {
+                for (let r = 0; r < C_DIMS.reg; r++) {
+                    tensorC.cells[l][r].reset();
+                }
+            }
+        }
+
+        function highlightMappings(mappings) {
+            mappings.forEach((pair, index) => {
+                const color = PAIR_COLORS[index % PAIR_COLORS.length];
+                const [aCoord, bCoord] = pair;
+                const [la, ra, pa] = aCoord;
+                const [lb, rb, pb] = bCoord;
+                
+                // Highlight A cell if in bounds
+                if (la >= 0 && la < A_DIMS.lane && 
+                    ra >= 0 && ra < A_DIMS.reg && 
+                    pa >= 0 && pa < A_DIMS.pack) {
+                    tensorA.cells[la][ra][pa].highlight(color);
+                }
+                
+                // Highlight B cell if in bounds
+                if (lb >= 0 && lb < B_DIMS.lane && 
+                    rb >= 0 && rb < B_DIMS.reg && 
+                    pb >= 0 && pb < B_DIMS.pack) {
+                    tensorB.cells[lb][rb][pb].highlight(color);
+                }
+            });
+        }
+
+        function displayMappings(mappings) {
+            mappingInfoEl.innerHTML = '';
+            
+            mappings.forEach((pair, index) => {
+                const color = PAIR_COLORS[index % PAIR_COLORS.length];
+                const [aCoord, bCoord] = pair;
+                
+                const item = document.createElement('div');
+                item.className = 'mapping-item';
+                
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = `#${color.toString(16).padStart(6, '0')}`;
+                
+                const coords = document.createElement('div');
+                coords.className = 'mapping-coords';
+                
+                const aBadge = document.createElement('span');
+                aBadge.className = 'coord-badge a';
+                aBadge.textContent = `A[${aCoord.join(',')}]`;
+                
+                const bBadge = document.createElement('span');
+                bBadge.className = 'coord-badge b';
+                bBadge.textContent = `B[${bCoord.join(',')}]`;
+                
+                coords.appendChild(aBadge);
+                coords.appendChild(bBadge);
+                
+                item.appendChild(swatch);
+                item.appendChild(coords);
+                mappingInfoEl.appendChild(item);
+            });
+        }
+
+        // ============================================
+        // ANIMATION LOOP
+        // ============================================
+        function resizeRendererToDisplaySize() {
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            const needResize = canvas.width !== width || canvas.height !== height;
+            if (needResize) {
+                renderer.setSize(width, height, false);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            }
+            return needResize;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            resizeRendererToDisplaySize();
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Initial camera position update
+        controls.update();
+    </script>
+</body>
+</html>

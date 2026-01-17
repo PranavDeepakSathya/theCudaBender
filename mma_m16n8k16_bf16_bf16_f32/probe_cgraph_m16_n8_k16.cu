@@ -1,4 +1,4 @@
-#include "atoms/all.cuh"
+#include "../atoms/all.cuh"
 
 constexpr int n_blocks = 1; 
 constexpr int n_tpb = 32; 
