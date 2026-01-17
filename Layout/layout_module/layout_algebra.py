@@ -51,16 +51,16 @@ def construct_morphism(A:Layout)->nested_tuple_morphism:
 
 def compose (A:Layout, B:Layout):
   A_mor,B_mor = construct_morphism(A), construct_morphism(B)
-  return compose_morphism(A_mor,B_mor)
+  return to_layout(compose_morphism(A_mor,B_mor))
 
 def divide (A:Layout, B:Layout):
   #A_mor,B_mor = construct_morphism(A), construct_morphism(B)
   #assert B_mor.co_domain == A_mor.domain
   B_comp = B.construct_N_complement(A.size)
   cat = concatenate([B,B_comp])
-  return to_layout(compose(cat, A))
+  return compose(cat, A)
 
 def product(A:Layout, B:Layout): 
   A_c = A.construct_N_complement(A.size*B.cosize)
-  cat = concatenate([A, to_layout(compose(B,A_c))])
+  cat = concatenate([A, compose(B,A_c)])
   return cat
