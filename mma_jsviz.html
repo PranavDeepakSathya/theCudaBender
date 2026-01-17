@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MMA Structural Visualizer (Three.js)</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #0e0e0e; color: white; }
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.7);
+      padding: 10px;
+      font-family: monospace;
+      z-index: 10;
+    }
+    button { margin: 2px; }
+  </style>
+</head>
+<body>
+
+<div id="ui">
+  <div><b>C tile selector</b></div>
+  lc: <input id="lc" type="number" value="0" min="0" max="31" />
+  rc: <input id="rc" type="number" value="0" min="0" max="3" />
+  <button onclick="updateSelection()">select</button>
+</div>
+
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+
+
+// ------------------------------
+// Wiring law (ground truth)
+// ------------------------------
+function inv_by_k(k, lc, rc) {
+  const la = Math.floor(k/4) + 4*Math.floor(lc/4);
+  const lb = Math.floor(k/4) + 8*(lc%4) + 4*(rc%2);
+  const ra = 2*(Math.floor(k/2)%2) + Math.floor(rc/2);
+  const rb = Math.floor(k/2)%2;
+  const pa = k%2;
+  const pb = k%2;
+  return [[la,ra,pa],[lb,rb,pb]];
+}
+
+// ------------------------------
+// Scene setup
+// ------------------------------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0e0e0e);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(40, 20, 40);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(16, 2, 1);
+controls.update();
+
+// ------------------------------
+// Helpers
+// ------------------------------
+const gridMat = new THREE.MeshBasicMaterial({ color: 0x444444, wireframe: true });
+const hiAMat  = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+const hiBMat  = new THREE.MeshBasicMaterial({ color: 0x44aaff });
+
+function cube(x,y,z,mat,size=0.9) {
+  const g = new THREE.BoxGeometry(size,size,size);
+  const m = new THREE.Mesh(g,mat);
+  m.position.set(x,y,z);
+  return m;
+}
+
+// ------------------------------
+// Build full lattices
+// ------------------------------
+const A_all = [];
+const B_all = [];
+
+for (let la=0; la<32; la++)
+  for (let ra=0; ra<4; ra++)
+    for (let pa=0; pa<2; pa++) {
+      const c = cube(la, ra, pa, gridMat);
+      scene.add(c);
+      A_all.push(c);
+    }
+
+for (let lb=0; lb<32; lb++)
+  for (let rb=0; rb<2; rb++)
+    for (let pb=0; pb<2; pb++) {
+      const c = cube(lb, rb+6, pb, gridMat);
+      scene.add(c);
+      B_all.push(c);
+    }
+
+// ------------------------------
+// Highlight cubes
+// ------------------------------
+let hiA = [];
+let hiB = [];
+
+window.updateSelection = function() {
+  hiA.forEach(o => scene.remove(o));
+  hiB.forEach(o => scene.remove(o));
+  hiA = []; hiB = [];
+
+  const lc = parseInt(document.getElementById('lc').value);
+  const rc = parseInt(document.getElementById('rc').value);
+
+  for (let k=0;k<16;k++) {
+    const [A,B] = inv_by_k(k,lc,rc);
+
+    const a = cube(A[0], A[1], A[2], hiAMat, 1.1);
+    const b = cube(B[0], B[1]+6, B[2], hiBMat, 1.1);
+
+    scene.add(a);
+    scene.add(b);
+    hiA.push(a);
+    hiB.push(b);
+  }
+}
+
+updateSelection();
+
+// ------------------------------
+// Render loop
+// ------------------------------
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+
+</script>
+</body>
+</html>
