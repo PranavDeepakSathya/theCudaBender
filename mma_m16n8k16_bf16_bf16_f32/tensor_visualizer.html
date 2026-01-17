@@ -347,15 +347,15 @@
                 <div class="axis-info">
                     <div class="axis-item">
                         <div class="axis-label">Down (Y-)</div>
-                        <div class="axis-value">lane_id</div>
-                    </div>
-                    <div class="axis-item">
-                        <div class="axis-label">Right (X+)</div>
                         <div class="axis-value">reg_id</div>
                     </div>
                     <div class="axis-item">
-                        <div class="axis-label">Forward (Z+)</div>
+                        <div class="axis-label">Right (X+)</div>
                         <div class="axis-value">pack</div>
+                    </div>
+                    <div class="axis-item">
+                        <div class="axis-label">Forward (Z+)</div>
+                        <div class="axis-value">lane_id</div>
                     </div>
                 </div>
             </div>
@@ -549,9 +549,9 @@
         // Positioned to the LEFT of C
         const A_DIMS = { lane: 32, reg: 4, pack: 2 };
         const A_COLOR = 0xf72585;
-        // A is placed to the left of C: negative X offset
+        // A is placed to the left of C: negative X offset (width is pack)
         const A_OFFSET = { 
-            x: -(A_DIMS.reg * CELL_TOTAL) - 10, // Left of C with gap
+            x: -(A_DIMS.pack * CELL_TOTAL) - 10, // Left of C with gap
             y: 0, 
             z: 0 
         };
@@ -561,12 +561,12 @@
             for (let reg = 0; reg < A_DIMS.reg; reg++) {
                 tensorA.cells[lane][reg] = [];
                 for (let pack = 0; pack < A_DIMS.pack; pack++) {
-                    // reg_id increases to the right (positive X)
-                    const x = A_OFFSET.x + reg * CELL_TOTAL;
-                    // lane_id increases downward (negative Y) - FIX 3: top-left origin
-                    const y = A_OFFSET.y - lane * CELL_TOTAL;
-                    // pack increases in depth (positive Z)
-                    const z = A_OFFSET.z + pack * CELL_TOTAL;
+                    // pack increases to the right (positive X) -> width
+                    const x = A_OFFSET.x + pack * CELL_TOTAL;
+                    // reg_id increases downward (negative Y) -> height
+                    const y = A_OFFSET.y - reg * CELL_TOTAL;
+                    // lane_id increases in depth (positive Z)
+                    const z = A_OFFSET.z + lane * CELL_TOTAL;
                     const cell = new TensorCell(x, y, z, A_COLOR, tensorA.group);
                     tensorA.cells[lane][reg][pack] = cell;
                 }
@@ -594,10 +594,12 @@
             for (let reg = 0; reg < B_DIMS.reg; reg++) {
                 tensorB.cells[lane][reg] = [];
                 for (let pack = 0; pack < B_DIMS.pack; pack++) {
-                    const x = B_OFFSET.x + reg * CELL_TOTAL;
-                    // lane_id increases downward (negative Y)
-                    const y = B_OFFSET.y - lane * CELL_TOTAL;
-                    const z = B_OFFSET.z + pack * CELL_TOTAL;
+                    // pack increases to the right (positive X) -> width
+                    const x = B_OFFSET.x + pack * CELL_TOTAL;
+                    // reg_id increases downward (negative Y) -> height
+                    const y = B_OFFSET.y - reg * CELL_TOTAL;
+                    // lane_id increases in depth (positive Z)
+                    const z = B_OFFSET.z + lane * CELL_TOTAL;
                     const cell = new TensorCell(x, y, z, B_COLOR, tensorB.group);
                     tensorB.cells[lane][reg][pack] = cell;
                 }
@@ -613,10 +615,12 @@
         for (let lane = 0; lane < C_DIMS.lane; lane++) {
             tensorC.cells[lane] = [];
             for (let reg = 0; reg < C_DIMS.reg; reg++) {
+                // reg_id increases to the right (positive X) -> width
                 const x = C_OFFSET.x + reg * CELL_TOTAL;
-                // lane_id increases downward (negative Y)
-                const y = C_OFFSET.y - lane * CELL_TOTAL;
-                const z = C_OFFSET.z;
+                // C is a 2D plane: keep a constant height
+                const y = C_OFFSET.y;
+                // lane_id increases in depth (positive Z)
+                const z = C_OFFSET.z + lane * CELL_TOTAL;
                 const cell = new TensorCell(x, y, z, C_COLOR, tensorC.group);
                 tensorC.cells[lane][reg] = cell;
             }
@@ -631,7 +635,7 @@
         // ============================================
         
         // Helper to add axis with arrows at each tensor
-        function addTensorAxes(offset, dims, tensorName, color, hasPack = true) {
+        function addTensorAxes(offset, dims, tensorName, color, axisLabels, showDepth = true, showHeight = true) {
             const axisLength = 8;
             const labelOffset = 3;
             
@@ -643,13 +647,13 @@
             // Tensor name label
             const nameLabel = createTextSprite(tensorName, color, 56);
             nameLabel.position.set(
-                offset.x + (dims.reg * CELL_TOTAL) / 2 - CELL_TOTAL/2,
+                offset.x + (dims.width * CELL_TOTAL) / 2 - CELL_TOTAL/2,
                 startY + 5,
                 offset.z
             );
             scene.add(nameLabel);
             
-            // X-axis (reg_id) - pointing RIGHT
+            // X-axis (width) - pointing RIGHT
             const xArrow = createAxisArrow(
                 new THREE.Vector3(startX, startY, startZ),
                 new THREE.Vector3(startX + axisLength, startY, startZ),
@@ -657,24 +661,26 @@
             );
             scene.add(xArrow);
             
-            const xLabel = createTextSprite('reg_id', 0xfee440, 40);
+            const xLabel = createTextSprite(axisLabels.x, 0xfee440, 40);
             xLabel.position.set(startX + axisLength + labelOffset, startY, startZ);
             scene.add(xLabel);
             
-            // Y-axis (lane_id) - pointing DOWN (negative Y)
-            const yArrow = createAxisArrow(
-                new THREE.Vector3(startX, startY, startZ),
-                new THREE.Vector3(startX, startY - axisLength, startZ),
-                0xff6b6b
-            );
-            scene.add(yArrow);
+            if (showHeight) {
+                // Y-axis (height) - pointing DOWN (negative Y)
+                const yArrow = createAxisArrow(
+                    new THREE.Vector3(startX, startY, startZ),
+                    new THREE.Vector3(startX, startY - axisLength, startZ),
+                    0xff6b6b
+                );
+                scene.add(yArrow);
+                
+                const yLabel = createTextSprite(axisLabels.y, 0xff6b6b, 40);
+                yLabel.position.set(startX, startY - axisLength - labelOffset, startZ);
+                scene.add(yLabel);
+            }
             
-            const yLabel = createTextSprite('lane_id', 0xff6b6b, 40);
-            yLabel.position.set(startX, startY - axisLength - labelOffset, startZ);
-            scene.add(yLabel);
-            
-            // Z-axis (pack) - pointing FORWARD (positive Z) - only for 3D tensors
-            if (hasPack) {
+            // Z-axis (depth) - pointing FORWARD (positive Z)
+            if (showDepth) {
                 const zArrow = createAxisArrow(
                     new THREE.Vector3(startX, startY, startZ),
                     new THREE.Vector3(startX, startY, startZ + axisLength),
@@ -682,22 +688,46 @@
                 );
                 scene.add(zArrow);
                 
-                const zLabel = createTextSprite('pack', 0x74b9ff, 40);
+                const zLabel = createTextSprite(axisLabels.z, 0x74b9ff, 40);
                 zLabel.position.set(startX, startY, startZ + axisLength + labelOffset);
                 scene.add(zLabel);
             }
         }
 
         // Add axes to each tensor
-        addTensorAxes(A_OFFSET, A_DIMS, 'Tensor A', 0xf72585, true);
-        addTensorAxes(B_OFFSET, B_DIMS, 'Tensor B', 0x4361ee, true);
-        addTensorAxes(C_OFFSET, C_DIMS, 'Tensor C', 0x00f5d4, false);
+        addTensorAxes(
+            A_OFFSET,
+            { width: A_DIMS.pack },
+            'Tensor A',
+            0xf72585,
+            { x: 'pack', y: 'reg_id', z: 'lane_id' },
+            true,
+            true
+        );
+        addTensorAxes(
+            B_OFFSET,
+            { width: B_DIMS.pack },
+            'Tensor B',
+            0x4361ee,
+            { x: 'pack', y: 'reg_id', z: 'lane_id' },
+            true,
+            true
+        );
+        addTensorAxes(
+            C_OFFSET,
+            { width: C_DIMS.reg },
+            'Tensor C',
+            0x00f5d4,
+            { x: 'reg_id', y: '', z: 'lane_id' },
+            true,
+            false
+        );
 
         // ============================================
         // GRID HELPER
         // ============================================
         const gridHelper = new THREE.GridHelper(260, 60, 0x2a2a3a, 0x1a1a25);
-        gridHelper.position.y = C_OFFSET.y - (C_DIMS.lane * CELL_TOTAL) - 8;
+        gridHelper.position.y = C_OFFSET.y - 8;
         scene.add(gridHelper);
 
         // ============================================
