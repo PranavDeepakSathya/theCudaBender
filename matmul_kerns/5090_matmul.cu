@@ -132,10 +132,30 @@ __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant_
     }
     
   }
-  if (blockIdx.x == 0 && threadIdx.x == 0)
-  {
-    printf("%f, %f, %f, %f", rc[0],rc[1],rc[2],rc[3]);
-  }  
+
+  // if (blockIdx.x == 0 && threadIdx.x == 0)
+  // {
+  //   printf("%f, %f, %f, %f", rc[0],rc[1],rc[2],rc[3]);
+  // }  
+  __syncthreads();
+
+  int lane_m = l/4; 
+  int lane_n = 2*(l%4); 
+  int c_total_offset_at_warp_gran_m = block_m_start + warp_m_start; 
+  int c_total_offset_at_warp_gran_n = block_n_start + warp_n_start; 
+  int store_ro_m = c_total_offset_at_warp_gran_m + lane_m; 
+  int store_ro_n = c_total_offset_at_warp_gran_n + lane_n; 
+  int store_r1_m = c_total_offset_at_warp_gran_m + lane_m; 
+  int store_r1_n = c_total_offset_at_warp_gran_n + lane_n + 1; 
+  int store_r2_m = c_total_offset_at_warp_gran_m + lane_m + 8; 
+  int store_r2_n = c_total_offset_at_warp_gran_n + lane_n; 
+  int store_r3_m = c_total_offset_at_warp_gran_m + lane_m + 8; 
+  int store_r3_n = c_total_offset_at_warp_gran_n + lane_n + 1;   
+
+  C.get(store_ro_m, store_ro_n) = rc[0];
+  C.get(store_r1_m, store_r1_n) = rc[1];
+  C.get(store_r2_m, store_r2_n) = rc[2];
+  C.get(store_r3_m, store_r3_n) = rc[3];
 
 }
 
