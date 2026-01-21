@@ -103,6 +103,16 @@ public:
         }
         return h_ptr[offset];
     }
+    template<typename... Args>
+    const T& get_host(Args... indices) const {
+        // Variadic fold expression to verify rank could go here, but keeping it fast.
+        size_t idxs[] = {static_cast<size_t>(indices)...};
+        size_t offset = 0;
+        for (size_t i = 0; i < shape.size(); ++i) {
+            offset += idxs[i] * strides[i];
+        }
+        return h_ptr[offset];
+    }
 
     // --------------------------------------------------------
     // Device View Factory
