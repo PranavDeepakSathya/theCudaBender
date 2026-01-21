@@ -2,7 +2,7 @@
 
 constexpr int ld_n = 8;
 constexpr int ld_m = 8;
-constexpr int x = 1;
+constexpr int x = 4;
 constexpr int m = ld_m*ld_n*x; 
 constexpr int loads_per_lane = 2*x; 
 constexpr int loads_per_iter = 32;
