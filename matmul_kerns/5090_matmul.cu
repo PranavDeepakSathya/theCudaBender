@@ -1,0 +1,173 @@
+#include "../atoms/all.cuh"
+
+using barrier = cuda::barrier<cuda::thread_scope_block>;
+namespace ptx = cuda::ptx;
+
+
+constexpr int M = 4096; 
+constexpr int K = 4096; 
+constexpr int N = 4096; 
+constexpr int mma_m = 16; 
+constexpr int mma_n = 8; 
+constexpr int mma_k = 16; 
+constexpr int warps_m = 2; 
+constexpr int warps_n = 4; 
+constexpr int BM = mma_m*warps_m; 
+constexpr int BN = mma_n*warps_n; 
+constexpr int k_iters = 4; 
+constexpr int BK = mma_k*k_iters; 
+constexpr int grid_size = (M*N)/(BM*BN); 
+constexpr int block_size = warps_m*warps_n*32; 
+constexpr int GM = M/BM; 
+constexpr int GN = N/BN; 
+
+
+__global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant__ const CUtensorMap gB,
+  NaiveTensor<float>::DeviceView C)
+
+{
+  __shared__ alignas(128) nv_bfloat16 As[BM*BK]; 
+  __shared__ alignas(128) nv_bfloat16 Bs[BK*BN]; 
+  int t = threadIdx.x;
+
+  int w = t/32;
+  int l = t%32;
+  int b = blockIdx.x; 
+
+  int gm = b / GN; 
+  int gn = b % GN; 
+  
+  int block_m_start = gm*BM; 
+  int block_n_start = gn*BN; 
+  nv_bfloat162 ra[4]; 
+  nv_bfloat162 rb[2]; 
+  float rc[4];
+
+  int wm = w / warps_n; 
+  int wn = w % warps_n; 
+  int warp_m_start = wm*mma_m; 
+  int warp_n_start = wn*mma_n;
+
+
+  __shared__ barrier bar; 
+  if (threadIdx.x == 0)
+  {
+    init(&bar, blockDim.x);
+  }
+  __syncthreads();
+
+  barrier::arrival_token token; 
+
+  for (int block_k_start = 0; block_k_start < K; block_k_start += BK)
+  {
+    
+    if (is_elected())
+    {
+      int32_t coords_A[2] = {block_k_start, block_m_start};
+      int32_t coords_B[2] = {block_k_start, block_n_start}; 
+
+      ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, &As, &gA, coords_A, cuda::device::barrier_native_handle(bar));
+      ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, &Bs, &gB, coords_B, cuda::device::barrier_native_handle(bar));
+      token = cuda::device::barrier_arrive_tx(bar, 1, sizeof(As)+sizeof(Bs));
+    }
+    else
+    {
+      token = bar.arrive();
+    }
+    bar.wait(std::move(token));
+
+    for (int warp_k_start = 0; warp_k_start < BK; warp_k_start += mma_k)
+    {
+      
+
+      int a_lane_group_16x16_id = l/16; 
+      int a_lane_row_id = l % 16;
+      int a_lane_group_offset = a_lane_group_16x16_id*8; 
+      int a_row_idx = warp_m_start + a_lane_row_id; 
+      int a_col_idx = warp_k_start + a_lane_group_offset; 
+      int a_flat_offset = a_col_idx + (a_row_idx*BK); 
+      
+      uint32_t smem_base_a = static_cast<uint32_t>(__cvta_generic_to_shared(As));
+      uint32_t a_ld_addr = smem_base_a + (a_flat_offset * sizeof(nv_bfloat16));
+      uint32_t* a_reg_ptr = reinterpret_cast<uint32_t*>(ra);
+  
+      asm volatile(
+        "ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0, %1, %2, %3}, [%4];"
+        : "=r"(a_reg_ptr[0]), "=r"(a_reg_ptr[1]), "=r"(a_reg_ptr[2]), "=r"(a_reg_ptr[3])
+        : "r"(a_ld_addr)
+      );
+      
+      int b_lane_group_16x8_id = l/8; 
+      int b_lane_col_id = l % 8; 
+      int b_lane_group_offset = b_lane_group_16x8_id*8; 
+      int b_row_idx = warp_k_start + b_lane_group_offset;
+      int b_col_idx = warp_n_start + b_lane_col_id; 
+      int b_flat_offset = b_row_idx + (b_col_idx*BK); 
+
+      uint32_t smem_base_b = static_cast<uint32_t>(__cvta_generic_to_shared(Bs));
+      uint32_t b_ld_addr = smem_base_b + (b_flat_offset * sizeof(nv_bfloat16)); 
+      uint32_t* b_reg_ptr = reinterpret_cast<uint32_t*>(rb);
+      
+      asm volatile(
+        "ldmatrix.sync.aligned.m8n8.x2.shared.b16 {%0, %1}, [%2];"
+        : "=r"(b_reg_ptr[0]), "=r"(b_reg_ptr[1]) 
+        : "r"(b_ld_addr)
+      );
+      
+      __syncthreads();
+      float* c_reg_ptr = reinterpret_cast<float*>(rc);
+
+      asm volatile(
+        "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
+        "{%0, %1, %2, %3}, "
+        "{%4, %5, %6, %7}, "
+        "{%8, %9}, "
+        "{%10, %11, %12, %13};\n"
+        : "=f"(c_reg_ptr[0]), "=f"(c_reg_ptr[1]), "=f"(c_reg_ptr[2]), "=f"(c_reg_ptr[3])
+        : "r"(a_reg_ptr[0]), "r"(a_reg_ptr[1]), "r"(a_reg_ptr[2]), "r"(a_reg_ptr[3]),
+          "r"(b_reg_ptr[0]), "r"(b_reg_ptr[1]),
+          "f"(c_reg_ptr[0]), "f"(c_reg_ptr[1]), "f"(c_reg_ptr[2]), "f"(c_reg_ptr[3])
+    );
+
+    }
+    
+
+  }
+}
+
+
+
+int main()
+{
+  NaiveTensor<nv_bfloat16> A({M,K}, Layout::ROW_MAJOR);
+  NaiveTensor<nv_bfloat16> B({K,N}, Layout::COL_MAJOR); 
+  NaiveTensor<float>C({M,N}, Layout::ROW_MAJOR); 
+  A.allocate();
+  B.allocate();
+  C.allocate();
+  A.init_pattern(MODE_ARANGE, DIST_FLOAT_NEG1_1);
+  B.init_pattern(MODE_ARANGE, DIST_FLOAT_NEG1_1);
+  C.init_pattern(MODE_ZEROS, DIST_FLOAT_NEG1_1);
+  CUtensorMap a_map = TmaDescriptor<nv_bfloat16>::create_2d_row_major(A.d_ptr,{M,K},{BM,BK});
+  CUtensorMap b_map = TmaDescriptor<nv_bfloat16>::create_2d_col_major(B.d_ptr, {K,N}, {BK,BN});
+  auto c_view = C.get_device_view();
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  cudaEventRecord(start);
+
+  matmul<<<grid_size, block_size>>>(a_map, b_map, c_view);
+
+  cudaEventRecord(stop);
+  cudaEventSynchronize(stop);
+
+  float ms = 0.0f;
+  cudaEventElapsedTime(&ms, start, stop);
+
+  printf("matmul kernel time: %.4f ms\n", ms);
+
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
+
+}
