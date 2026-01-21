@@ -131,8 +131,12 @@ __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant_
 
     }
     
-
   }
+  if (blockIdx.x == 0 && threadIdx.x == 0)
+  {
+    printf("%f, %f, %f, %f", rc[0],rc[1],rc[2],rc[3]);
+  }  
+
 }
 
 
@@ -145,9 +149,12 @@ int main()
   A.allocate();
   B.allocate();
   C.allocate();
-  A.init_pattern(MODE_ARANGE, DIST_FLOAT_NEG1_1);
-  B.init_pattern(MODE_ARANGE, DIST_FLOAT_NEG1_1);
+  A.init_pattern(MODE_RAND, DIST_FLOAT_NEG1_1);
+  B.init_pattern(MODE_RAND, DIST_FLOAT_NEG1_1);
   C.init_pattern(MODE_ZEROS, DIST_FLOAT_NEG1_1);
+  A.to_device();
+  B.to_device();
+  C.to_device();
   CUtensorMap a_map = TmaDescriptor<nv_bfloat16>::create_2d_row_major(A.d_ptr,{M,K},{BM,BK});
   CUtensorMap b_map = TmaDescriptor<nv_bfloat16>::create_2d_col_major(B.d_ptr, {K,N}, {BK,BN});
   auto c_view = C.get_device_view();
