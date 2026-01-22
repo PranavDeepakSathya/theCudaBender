@@ -60,3 +60,4 @@ __device__ inline bool is_elected()
     return (uniform_warp_id == 0 && elect_sync(0xFFFFFFFF)); // Elect a leader thread among warp 0.
 }
 
+

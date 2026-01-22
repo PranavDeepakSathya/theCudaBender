@@ -4,9 +4,9 @@ using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace ptx = cuda::ptx;
 
 
-constexpr int M = 4096; 
-constexpr int K = 4096; 
-constexpr int N = 4096; 
+constexpr int M = 256; 
+constexpr int K = 256; 
+constexpr int N = 256; 
 constexpr int mma_m = 16; 
 constexpr int mma_n = 8; 
 constexpr int mma_k = 16; 
@@ -21,11 +21,30 @@ constexpr int block_size = warps_m*warps_n*32;
 constexpr int GM = M/BM; 
 constexpr int GN = N/BN; 
 
-void cpu_gemm_ref(
-    const NaiveTensor<nv_bfloat16>& A,
-    const NaiveTensor<nv_bfloat16>& B,
-    NaiveTensor<float>& C_ref
-);
+__global__ void verif_matmul(nv_bfloat16 *A, nv_bfloat16 *B, float * C_ref)
+
+{
+  int global_thread_id = threadIdx.x + (blockIdx.x*blockDim.x);
+  int m = global_thread_id/N; 
+  int n = global_thread_id % N; 
+  nv_bfloat16 ra; 
+  nv_bfloat16 rb; 
+  float acc = 0;
+
+  if (m < M && n < N)
+  {
+    for (int k = 0; k < K; k++)
+    {
+      ra = A[k + (K*m)]; //row major
+      rb = B[k + (K*n)];
+      acc += (float)(ra*rb);
+    }
+    
+    C_ref[m*N + n] = acc;
+  }
+
+}
+
 
 __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant__ const CUtensorMap gB,
   NaiveTensor<float>::DeviceView C)
@@ -46,7 +65,7 @@ __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant_
   int block_n_start = gn*BN; 
   nv_bfloat162 ra[4]; 
   nv_bfloat162 rb[2]; 
-  float rc[4];
+  float rc[4] = {0.0};
 
   int wm = w / warps_n; 
   int wn = w % warps_n; 
@@ -137,11 +156,7 @@ __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant_
     }
     
   }
-
-  // if (blockIdx.x == 0 && threadIdx.x == 0)
-  // {
-  //   printf("%f, %f, %f, %f", rc[0],rc[1],rc[2],rc[3]);
-  // }  
+ 
   __syncthreads();
 
   int lane_m = l/4; 
@@ -216,34 +231,47 @@ int main()
   // FLOP/s
   double tflops = flops / seconds / 1e12;
 
-  printf("FLOPs: %.3e\n", flops);
+  printf("FLOPs: %.3e\n", flops); 
   printf("Time:  %.4f ms\n", ms);
   printf("TFLOP/s: %.2f\n", tflops);
 
-  // NaiveTensor<float> C_ref({M, N}, Layout::ROW_MAJOR);
-  // C_ref.allocate();
-  // cpu_gemm_ref(A, B, C_ref);
 
-  // float max_abs_err = 0.0f;
-  // float max_rel_err = 0.0f;
+  NaiveTensor<float> C_ref({M, N}, Layout::ROW_MAJOR);
+  C_ref.allocate();
+  C_ref.init_pattern(MODE_ZEROS, DIST_FLOAT_NEG1_1);
+  C_ref.to_device();
 
-  // for (int i = 0; i < M; ++i)
-  // {
-  //     for (int j = 0; j < N; ++j)
-  //     {
-  //         float ref = C_ref.get_host(i, j);
-  //         float gpu = C.get_host(i, j);
+  verif_matmul<<<((M*N) + block_size - 1)/(block_size), block_size>>>(A.d_ptr, B.d_ptr, C_ref.d_ptr);
+  cudaDeviceSynchronize(); 
+  C_ref.to_host();
 
-  //         float abs_err = fabs(ref - gpu);
-  //         float rel_err = abs_err / (fabs(ref) + 1e-6f);
 
-  //         max_abs_err = fmax(max_abs_err, abs_err);
-  //         max_rel_err = fmax(max_rel_err, rel_err);
-  //     }
-  // }
 
-  // printf("max abs error = %e\n", max_abs_err);
-  // printf("max rel error = %e\n", max_rel_err);
+  float max_abs_err = 0.0f;
+  float max_rel_err = 0.0f;
+
+  for (int i = 0; i < M; ++i)
+  {
+      for (int j = 0; j < N; ++j)
+      {
+          float ref = C_ref.get_host(i, j);
+          float gpu = C.get_host(i, j);
+
+          float abs_err = fabs(ref - gpu);
+          float rel_err = abs_err / (fabs(ref) + 1e-6f);
+
+          max_abs_err = fmax(max_abs_err, abs_err);
+          max_rel_err = fmax(max_rel_err, rel_err);
+      }
+  }
+
+  printf("max abs error = %e\n", max_abs_err);
+  printf("max rel error = %e\n", max_rel_err);
+
+  printf("-----------C_ref------------\n");
+  C_ref.pretty_print(); 
+  printf("-----------C------------\n");
+  C.pretty_print();
 
 
 }
@@ -251,24 +279,3 @@ int main()
 
 
 
-void cpu_gemm_ref(
-    const NaiveTensor<nv_bfloat16>& A,
-    const NaiveTensor<nv_bfloat16>& B,
-    NaiveTensor<float>& C_ref
-)
-{
-    for (int i = 0; i < M; ++i)
-    {
-        for (int j = 0; j < N; ++j)
-        {
-            float acc = 0.0f;
-            for (int k = 0; k < K; ++k)
-            {
-                float a = __bfloat162float(A.get_host(i, k));
-                float b = __bfloat162float(B.get_host(k, j));
-                acc += a * b;
-            }
-            C_ref.get_host(i, j) = acc;
-        }
-    }
-}
