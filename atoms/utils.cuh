@@ -61,3 +61,7 @@ __device__ inline bool is_elected()
 }
 
 
+__device__ __forceinline__ uintptr_t align128(uintptr_t ptr)
+{
+    return (ptr + 127) & ~uintptr_t(127);
+}
