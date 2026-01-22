@@ -301,7 +301,7 @@ int main()
   printf("Time:  %.4f ms\n", ms);
   printf("TFLOP/s: %.2f\n", tflops);
 
-  //print_kernel_info();
+  print_kernel_info();
 
 
 }
@@ -313,34 +313,42 @@ void print_kernel_info() {
     cudaError_t err = cudaFuncGetAttributes(&attr, matmul);
 
     if (err != cudaSuccess) {
-        printf("cudaFuncGetAttributes failed: %s\n", cudaGetErrorString(err));
+        printf("cudaFuncGetAttributes failed: %s\n",
+               cudaGetErrorString(err));
         return;
     }
 
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
 
-    printf("\n================ KERNEL INSPECTION ================\n");
+    printf("\n================ cudaFuncGetAttributes ================\n");
 
-    printf("Kernel name: matmul\n\n");
+    printf("attr.numRegs                     = %d\n",  attr.numRegs);
+    printf("attr.sharedSizeBytes             = %zu\n", attr.sharedSizeBytes);
+    printf("attr.maxDynamicSharedSizeBytes   = %zu\n", attr.maxDynamicSharedSizeBytes);
+    printf("attr.localSizeBytes              = %zu\n", attr.localSizeBytes);
+    printf("attr.maxThreadsPerBlock          = %d\n",  attr.maxThreadsPerBlock);
+    printf("attr.ptxVersion                  = %d\n",  attr.ptxVersion);
+    printf("attr.binaryVersion               = %d\n",  attr.binaryVersion);
 
-    printf("[ptxas results]\n");
-    printf("  Registers per thread      : %d\n", attr.numRegs);
-    printf("  Static shared memory      : %zu bytes\n", attr.sharedSizeBytes);
-    printf("  Dynamic shared memory max : %zu bytes\n", attr.maxDynamicSharedSizeBytes);
-    printf("  Local memory per thread   : %zu bytes\n", attr.localSizeBytes);
-    printf("  Max threads per block     : %d\n", attr.maxThreadsPerBlock);
+    printf("\n================ cudaDeviceProp =======================\n");
 
-    printf("\n[device limits]\n");
-    printf("  Registers per SM          : %d\n", prop.regsPerMultiprocessor);
-    printf("  Shared memory per SM      : %zu bytes\n", prop.sharedMemPerMultiprocessor);
-    printf("  Max threads per SM        : %d\n", prop.maxThreadsPerMultiProcessor);
-    printf("  Warp size                 : %d\n", prop.warpSize);
+    printf("prop.regsPerMultiprocessor       = %d\n",  prop.regsPerMultiprocessor);
+    printf("prop.sharedMemPerMultiprocessor  = %zu\n", prop.sharedMemPerMultiprocessor);
+    printf("prop.maxThreadsPerMultiProcessor = %d\n",  prop.maxThreadsPerMultiProcessor);
+    printf("prop.warpSize                    = %d\n",  prop.warpSize);
+    printf("prop.multiProcessorCount         = %d\n",  prop.multiProcessorCount);
+    printf("prop.sharedMemPerBlock           = %zu\n", prop.sharedMemPerBlock);
+    printf("prop.sharedMemPerBlockOptin      = %zu\n", prop.sharedMemPerBlockOptin);
+    printf("prop.maxRegistersPerBlock        = %d\n",  prop.regsPerBlock);
+
+    printf("\n================ derived quantities ===================\n");
 
     int threads_per_block = block_size;
-    int warps_per_block = threads_per_block / prop.warpSize;
+    int warps_per_block   = threads_per_block / prop.warpSize;
 
-    int regs_per_block = attr.numRegs * threads_per_block;
+    int regs_per_thread = attr.numRegs;
+    int regs_per_block  = regs_per_thread * threads_per_block;
 
     int max_blocks_regs =
         prop.regsPerMultiprocessor / regs_per_block;
@@ -348,9 +356,11 @@ void print_kernel_info() {
     int max_blocks_threads =
         prop.maxThreadsPerMultiProcessor / threads_per_block;
 
+    size_t smem_per_block =
+        attr.sharedSizeBytes + attr.maxDynamicSharedSizeBytes;
+
     int max_blocks_smem =
-        prop.sharedMemPerMultiprocessor /
-        (attr.sharedSizeBytes + attr.maxDynamicSharedSizeBytes);
+        prop.sharedMemPerMultiprocessor / smem_per_block;
 
     int max_blocks_per_sm =
         min(max_blocks_regs,
@@ -365,19 +375,18 @@ void print_kernel_info() {
     float occupancy =
         float(active_warps) / float(max_warps);
 
-    printf("\n[occupancy model]\n");
-    printf("  Threads per block         : %d\n", threads_per_block);
-    printf("  Warps per block           : %d\n", warps_per_block);
-    printf("  Registers per block       : %d\n", regs_per_block);
-    printf("  Max blocks per SM (regs)  : %d\n", max_blocks_regs);
-    printf("  Max blocks per SM (smem)  : %d\n", max_blocks_smem);
-    printf("  Max blocks per SM (thr)   : %d\n", max_blocks_threads);
-    printf("  ==> Active blocks per SM  : %d\n", max_blocks_per_sm);
-    printf("  ==> Active warps per SM   : %d / %d\n",
-           active_warps, max_warps);
+    printf("threads_per_block                = %d\n", threads_per_block);
+    printf("warps_per_block                  = %d\n", warps_per_block);
+    printf("regs_per_thread                  = %d\n", regs_per_thread);
+    printf("regs_per_block                   = %d\n", regs_per_block);
+    printf("smem_per_block                   = %zu\n", smem_per_block);
+    printf("max_blocks_regs                  = %d\n", max_blocks_regs);
+    printf("max_blocks_threads               = %d\n", max_blocks_threads);
+    printf("max_blocks_smem                  = %d\n", max_blocks_smem);
+    printf("max_blocks_per_sm                = %d\n", max_blocks_per_sm);
+    printf("active_warps_per_sm              = %d\n", active_warps);
+    printf("max_warps_per_sm                 = %d\n", max_warps);
+    printf("theoretical_occupancy            = %.4f\n", occupancy);
 
-    printf("  ==> Theoretical occupancy : %.1f %%\n",
-           occupancy * 100.0f);
-
-    printf("===================================================\n\n");
+    printf("======================================================\n\n");
 }

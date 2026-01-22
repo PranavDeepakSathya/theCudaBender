@@ -1,6 +1,0 @@
-max abs error = 1.733398e-02
-max rel error = 1.644938e-05
-matmul kernel time: 4.3311 ms
-FLOPs: 1.374e+11
-Time:  4.3311 ms
-TFLOP/s: 31.73

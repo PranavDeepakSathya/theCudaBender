@@ -59,7 +59,7 @@ __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant_
   {
     init(&bar, blockDim.x);
   }
-  __syncthreads();
+  //__syncthreads();
 
   barrier::arrival_token token; 
 
