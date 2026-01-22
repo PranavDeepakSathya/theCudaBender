@@ -29,6 +29,8 @@ static_assert(M % BM == 0, "M must be divisible by BM (block M tile)");
 static_assert(N % BN == 0, "N must be divisible by BN (block N tile)");
 static_assert(K % BK == 0, "K must be divisible by BK (K tile)");
 
+void print_kernel_info(); 
+
 __global__ void verif_matmul(
   const nv_bfloat16* A,
   const nv_bfloat16* B,
@@ -261,10 +263,10 @@ int main()
   printf("max rel error = %e\n", max_rel_err);
 
   // warmup_launches 
-  for (int i = 0; i < 3; i++)
+  for (int i = 0; i < 20; i++)
   {
     launcher.launch(matmul, a_map, b_map, c_view);
-    cudaDeviceSynchronize(); 
+    
   }
 
   cudaDeviceSynchronize(); 
@@ -299,5 +301,83 @@ int main()
   printf("Time:  %.4f ms\n", ms);
   printf("TFLOP/s: %.2f\n", tflops);
 
+  //print_kernel_info();
 
+
+}
+
+
+
+void print_kernel_info() {
+    cudaFuncAttributes attr;
+    cudaError_t err = cudaFuncGetAttributes(&attr, matmul);
+
+    if (err != cudaSuccess) {
+        printf("cudaFuncGetAttributes failed: %s\n", cudaGetErrorString(err));
+        return;
+    }
+
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+
+    printf("\n================ KERNEL INSPECTION ================\n");
+
+    printf("Kernel name: matmul\n\n");
+
+    printf("[ptxas results]\n");
+    printf("  Registers per thread      : %d\n", attr.numRegs);
+    printf("  Static shared memory      : %zu bytes\n", attr.sharedSizeBytes);
+    printf("  Dynamic shared memory max : %zu bytes\n", attr.maxDynamicSharedSizeBytes);
+    printf("  Local memory per thread   : %zu bytes\n", attr.localSizeBytes);
+    printf("  Max threads per block     : %d\n", attr.maxThreadsPerBlock);
+
+    printf("\n[device limits]\n");
+    printf("  Registers per SM          : %d\n", prop.regsPerMultiprocessor);
+    printf("  Shared memory per SM      : %zu bytes\n", prop.sharedMemPerMultiprocessor);
+    printf("  Max threads per SM        : %d\n", prop.maxThreadsPerMultiProcessor);
+    printf("  Warp size                 : %d\n", prop.warpSize);
+
+    int threads_per_block = block_size;
+    int warps_per_block = threads_per_block / prop.warpSize;
+
+    int regs_per_block = attr.numRegs * threads_per_block;
+
+    int max_blocks_regs =
+        prop.regsPerMultiprocessor / regs_per_block;
+
+    int max_blocks_threads =
+        prop.maxThreadsPerMultiProcessor / threads_per_block;
+
+    int max_blocks_smem =
+        prop.sharedMemPerMultiprocessor /
+        (attr.sharedSizeBytes + attr.maxDynamicSharedSizeBytes);
+
+    int max_blocks_per_sm =
+        min(max_blocks_regs,
+            min(max_blocks_threads, max_blocks_smem));
+
+    int active_warps =
+        max_blocks_per_sm * warps_per_block;
+
+    int max_warps =
+        prop.maxThreadsPerMultiProcessor / prop.warpSize;
+
+    float occupancy =
+        float(active_warps) / float(max_warps);
+
+    printf("\n[occupancy model]\n");
+    printf("  Threads per block         : %d\n", threads_per_block);
+    printf("  Warps per block           : %d\n", warps_per_block);
+    printf("  Registers per block       : %d\n", regs_per_block);
+    printf("  Max blocks per SM (regs)  : %d\n", max_blocks_regs);
+    printf("  Max blocks per SM (smem)  : %d\n", max_blocks_smem);
+    printf("  Max blocks per SM (thr)   : %d\n", max_blocks_threads);
+    printf("  ==> Active blocks per SM  : %d\n", max_blocks_per_sm);
+    printf("  ==> Active warps per SM   : %d / %d\n",
+           active_warps, max_warps);
+
+    printf("  ==> Theoretical occupancy : %.1f %%\n",
+           occupancy * 100.0f);
+
+    printf("===================================================\n\n");
 }

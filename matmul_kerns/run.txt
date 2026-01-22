@@ -1,0 +1,35 @@
+max abs error = 1.721191e-02
+max rel error = 1.602725e-05
+matmul kernel time: 4.3234 ms
+FLOPs: 1.374e+11
+Time:  4.3234 ms
+TFLOP/s: 31.79
+
+================ KERNEL INSPECTION ================
+Kernel name: matmul
+
+[ptxas results]
+  Registers per thread      : 42
+  Static shared memory      : 16 bytes
+  Dynamic shared memory max : 49664 bytes
+  Local memory per thread   : 96 bytes
+  Max threads per block     : 1024
+
+[device limits]
+  Registers per SM          : 65536
+  Shared memory per SM      : 102400 bytes
+  Max threads per SM        : 1536
+  Warp size                 : 32
+
+[occupancy model]
+  Threads per block         : 512
+  Warps per block           : 16
+  Registers per block       : 21504
+  Max blocks per SM (regs)  : 3
+  Max blocks per SM (smem)  : 2
+  Max blocks per SM (thr)   : 3
+  ==> Active blocks per SM  : 2
+  ==> Active warps per SM   : 32 / 48
+  ==> Theoretical occupancy : 66.7 %
+===================================================
+
