@@ -35,18 +35,36 @@ static_assert(K % (n_stages * BK) == 0,
 
 __device__ __forceinline__
 void produce(
+  nv_bfloat16** As,
+  nv_bfloat16** Bs,
+  int stage,
+  int k,
+  const CUtensorMap& gA,
+  const CUtensorMap& gB,
+  barrier* ready,
+  barrier* empty)
+
+{
+
+}
+
+__device__ __forceinline__
+void consume(
     nv_bfloat16** As,
     nv_bfloat16** Bs,
     int stage,
-    int k,
-    const CUtensorMap& gA,
-    const CUtensorMap& gB,
-    barrier* ready,
-    barrier* empty)
-
+    int warp_k_start,
+    int lane_id,
+    int warp_m_start,
+    int warp_n_start,
+    nv_bfloat162* ra,   // ← uses kernel registers
+    nv_bfloat162* rb,
+    float* rc
+)
 {
-  
+    // body later
 }
+
 
 
 __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant__ const CUtensorMap gB,
@@ -84,6 +102,45 @@ __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant_
   }
   __syncthreads(); 
 
+  // after init()
+  empty[0].arrive();
+  empty[1].arrive();
+  __syncthreads();
+
+  int num_steps = K / BK;
+  int t = threadIdx.x;
+
+  int w = t/32;
+  int l = t%32;
+  int b = blockIdx.x; 
+  nv_bfloat162 ra[4]; 
+  nv_bfloat162 rb[2]; 
+  float rc[4];
+
+  bool is_producer = w == n_consumer_warps; 
+
+  if (is_producer)
+  {
+    empty[0].arrive_and_wait();
+
+    produce(
+      As,
+      Bs,
+      0,
+      0,
+      gA,
+      gB,
+      ready,
+      empty
+    );
+
+    ready[0].arrive();
+  }
+
+  for (int s = 0; s < num_steps; s++)
+  {
+
+  }
 
 }
 
