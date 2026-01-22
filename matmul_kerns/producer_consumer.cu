@@ -33,39 +33,6 @@ static_assert(K % (n_stages * BK) == 0,
     "K must be divisible by n_stages * BK");
 
 
-__device__ __forceinline__
-void produce(
-  nv_bfloat16** As,
-  nv_bfloat16** Bs,
-  int stage,
-  int k,
-  const CUtensorMap& gA,
-  const CUtensorMap& gB,
-  barrier* ready,
-  barrier* empty)
-
-{
-
-}
-
-__device__ __forceinline__
-void consume(
-    nv_bfloat16** As,
-    nv_bfloat16** Bs,
-    int stage,
-    int warp_k_start,
-    int lane_id,
-    int warp_m_start,
-    int warp_n_start,
-    nv_bfloat162* ra,   // ← uses kernel registers
-    nv_bfloat162* rb,
-    float* rc
-)
-{
-    // body later
-}
-
-
 
 __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant__ const CUtensorMap gB,
   NaiveTensor<float>::DeviceView C)
@@ -92,19 +59,18 @@ __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant_
   nv_bfloat16* As[2] = {As0, As1};
   nv_bfloat16* Bs[2] = {Bs0, Bs1};
 
+  __shared__ barrier filled[n_stages];
   __shared__ barrier ready[n_stages];
-  __shared__ barrier empty[n_stages];
 
   if (threadIdx.x < n_stages) 
   {
     init(&ready[threadIdx.x], blockDim.x);
-    init(&empty[threadIdx.x], blockDim.x);
+    init(&filled[threadIdx.x], blockDim.x);
   }
   __syncthreads(); 
 
   // after init()
-  empty[0].arrive();
-  empty[1].arrive();
+
   __syncthreads();
 
   int num_steps = K / BK;
@@ -117,30 +83,55 @@ __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant_
   nv_bfloat162 rb[2]; 
   float rc[4];
 
-  bool is_producer = w == n_consumer_warps; 
+    int gm = b / GN; 
+  int gn = b % GN; 
+  
+  int block_m_start = gm*BM; 
+  int block_n_start = gn*BN; 
+  nv_bfloat162 ra[4]; 
+  nv_bfloat162 rb[2]; 
+  float rc[4] = {0.0};
 
-  if (is_producer)
+  int wm = w / warps_n; 
+  int wn = w % warps_n; 
+  int warp_m_start = wm*mma_m; 
+  int warp_n_start = wn*mma_n;
+
+  int b_lane_group_16x8_id = l/8; 
+  int b_lane_col_id = l % 8; 
+  int b_lane_group_offset = b_lane_group_16x8_id*8; 
+  int b_col_idx = warp_n_start + b_lane_col_id; 
+
+
+  int a_lane_group_16x16_id = l/16; 
+  int a_lane_row_id = l % 16;
+  int a_lane_group_offset = a_lane_group_16x16_id*8; 
+  int a_row_idx = warp_m_start + a_lane_row_id; 
+
+  if (w == n_consumer_warps)
   {
-    empty[0].arrive_and_wait();
+    //producer: 
+    for (int s = 0; s < num_steps, s++)
+    {
+    if (is_elected())
+      {
+        int block_k_start = s*BK; 
 
-    produce(
-      As,
-      Bs,
-      0,
-      0,
-      gA,
-      gB,
-      ready,
-      empty
-    );
+        int32_t coords_A[2] = {block_k_start, block_m_start};
+        int32_t coords_B[2] = {block_k_start, block_n_start}; 
 
-    ready[0].arrive();
+        ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, As, &gA, coords_A, cuda::device::barrier_native_handle(bar));
+        ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, Bs, &gB, coords_B, cuda::device::barrier_native_handle(bar));
+        barrier_t::arrival_token token = cuda::device::barrier_arrive_tx(bar, 1, As_bytes + Bs_bytes);
+      }
+      else
+      {
+        barrier_t::arrival_token token = filled[i % 2].arrive();
+      }
+
+    }
   }
 
-  for (int s = 0; s < num_steps; s++)
-  {
-
-  }
 
 }
 
