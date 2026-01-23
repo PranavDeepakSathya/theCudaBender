@@ -102,14 +102,6 @@ __global__ void k_cycled_matmul (__grid_constant__ const CUtensorMap gA, __grid_
     int comp_0_a_load_k = a_lane_group_16x16_offset + warp_k_start;
     int comp_0_b_load_k = b_lane_group_16x8_offset + warp_k_start;
 
-    int comp_1_a_load_k = (a_lane_group_16x16_offset + 2*warp_k_start) % BK;
-    int comp_1_b_load_k = (b_lane_group_16x8_offset + 2*warp_k_start) % BK; 
-    
-    int comp_2_a_load_k = (a_lane_group_16x16_offset + 3*warp_k_start) % BK;
-    int comp_2_b_load_k = (b_lane_group_16x8_offset + 3*warp_k_start) % BK; 
-
-    int comp_3_a_load_k = (a_lane_group_16x16_offset + 4*warp_k_start) % BK;
-    int comp_3_b_load_k = (b_lane_group_16x8_offset + 4*warp_k_start) % BK; 
 
   }
 

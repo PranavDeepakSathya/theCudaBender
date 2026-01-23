@@ -1,0 +1,11 @@
+
+================ LDMATRIX LATENCY ===================
+iters                : 100000
+ldmatrix per iter     : 1
+shared memory bytes   : 8192
+
+[latency]
+  total cycles        : 6000157
+  cycles / ldmatrix   : 60.00
+=====================================================
+
