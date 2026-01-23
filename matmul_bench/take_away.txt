@@ -1,0 +1,9 @@
+The following data is per warp: 
+  doing an ldmatrix.m8n8.x4.bf16 has: 
+      A latency of about 60 clocks 
+      throughput of about 8-11 clocks 
+      so the "pipe_depth" is around 6-8? 
+  doing an mma.m16.n8.k16.bf16.bf16.f32 has: 
+    A latency of about 34 clocks 
+    throughput of about 4 clocks 
+  "pipe_depth" is almost exactly 8. 
