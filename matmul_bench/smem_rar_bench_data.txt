@@ -1,0 +1,15 @@
+
+================ LDMATRIX MICROBENCH ================
+iters                : 100000
+ldmatrix per iter     : 4
+shared memory bytes   : 8192
+
+[broadcast]
+  total cycles        : 3400114
+  cycles / ldmatrix   : 8.50
+
+[distinct]
+  total cycles        : 3500147
+  cycles / ldmatrix   : 8.75
+=====================================================
+
