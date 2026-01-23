@@ -1,0 +1,1 @@
+[throughput 8-frag] cycles / ldmatrix = 11.25

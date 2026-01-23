@@ -1,0 +1,20 @@
+
+================ MMA LATENCY =================
+iters            : 100000
+mma per iter      : 1
+
+[latency]
+  total cycles        : 3443864
+  cycles / mma        : 34.44
+==============================================
+
+
+============= MMA THROUGHPUT (8 ACC) =============
+iters            : 100000
+mma per iter      : 8
+
+[throughput]
+  total cycles        : 3443861
+  cycles / mma        : 4.30
+=================================================
+
