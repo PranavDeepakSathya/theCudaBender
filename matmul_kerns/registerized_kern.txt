@@ -1,0 +1,41 @@
+max abs error = 1.708984e-02
+max rel error = 1.595685e-05
+matmul kernel time: 3.5513 ms
+FLOPs: 1.374e+11
+Time:  3.5513 ms
+TFLOP/s: 38.70
+
+================ cudaFuncGetAttributes ================
+attr.numRegs                     = 42
+attr.sharedSizeBytes             = 16
+attr.maxDynamicSharedSizeBytes   = 49664
+attr.localSizeBytes              = 96
+attr.maxThreadsPerBlock          = 1024
+attr.ptxVersion                  = 120
+attr.binaryVersion               = 120
+
+================ cudaDeviceProp =======================
+prop.regsPerMultiprocessor       = 65536
+prop.sharedMemPerMultiprocessor  = 102400
+prop.maxThreadsPerMultiProcessor = 1536
+prop.warpSize                    = 32
+prop.multiProcessorCount         = 170
+prop.sharedMemPerBlock           = 49152
+prop.sharedMemPerBlockOptin      = 101376
+prop.maxRegistersPerBlock        = 65536
+
+================ derived quantities ===================
+threads_per_block                = 512
+warps_per_block                  = 16
+regs_per_thread                  = 42
+regs_per_block                   = 21504
+smem_per_block                   = 49680
+max_blocks_regs                  = 3
+max_blocks_threads               = 3
+max_blocks_smem                  = 2
+max_blocks_per_sm                = 2
+active_warps_per_sm              = 32
+max_warps_per_sm                 = 48
+theoretical_occupancy            = 0.6667
+======================================================
+
