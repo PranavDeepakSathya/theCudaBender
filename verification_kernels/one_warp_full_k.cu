@@ -3,10 +3,10 @@
 constexpr int mma_m = 16; 
 constexpr int mma_n = 8;
 constexpr int mma_k = 16; 
-constexpr int bk_stages = 4; 
-constexpr int bk_iters = 4;
-constexpr int warp_m_acc = 1; 
-constexpr int warp_n_acc = 1; 
+constexpr int bk_stages = 8; 
+constexpr int bk_iters = 2;
+constexpr int warp_m_acc = 4; 
+constexpr int warp_n_acc = 4; 
 
 constexpr int BK = bk_iters*mma_k*bk_stages; 
 constexpr int BM = mma_m*warp_m_acc; 
@@ -250,6 +250,50 @@ printf(" \n ================= C_actual ============ \n");
 C_ref.pretty_print(); 
 printf("\n ================ C_computed ============= \n");
 C.pretty_print();
+
+
+// ============================================================
+  // BENCHMARK (AFTER CORRECTNESS IS FULLY VERIFIED)
+  // ============================================================
+
+  const int warmup_iters = 20;
+  const int bench_iters  = 200;
+
+  // warmup
+  for (int i = 0; i < warmup_iters; ++i)
+  {
+    launcher.launch(one_warp_many_stages_acc_matmul, a_map, b_map, C.d_ptr);
+  }
+  cudaDeviceSynchronize();
+
+  // timing
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  cudaEventRecord(start);
+
+  for (int i = 0; i < bench_iters; ++i)
+  {
+    launcher.launch(one_warp_many_stages_acc_matmul, a_map, b_map, C.d_ptr);
+  }
+
+  cudaEventRecord(stop);
+  cudaEventSynchronize(stop);
+
+  float ms = 0.0f;
+  cudaEventElapsedTime(&ms, start, stop);
+
+  float avg_us = (ms * 1000.0f) / bench_iters;
+
+  printf("\n=========================================\n");
+  printf("Warmup iters : %d\n", warmup_iters);
+  printf("Benchmark iters : %d\n", bench_iters);
+  printf("Average kernel time: %.3f us\n", avg_us);
+  printf("=========================================\n\n");
+
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
 
 }
 
