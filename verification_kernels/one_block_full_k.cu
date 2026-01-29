@@ -9,7 +9,7 @@ constexpr int warp_n_acc = 2;
 constexpr int bk_iters = 4;
 
 constexpr int warp_m = 2; 
-constexpr int warp_n = 4; 
+constexpr int warp_n = 2; 
 
 constexpr int BK = bk_iters*mma_k; 
 constexpr int BM = warp_m*mma_m*warp_m_acc; 
@@ -217,7 +217,68 @@ __global__ void one_warp_ilp (__grid_constant__ const CUtensorMap gA,
   }
 
   //epilogue
-  
+  int bk = num_block_k_iters-1;
+  int curr_stage = bk % 2; 
+  int next_stage = (bk+1) % 2; 
+  int curr_bk_offset = bk*BK; 
+  int next_bk_offset = (bk+1)*BK;
+
+  bar[curr_stage].wait(std::move(token[curr_stage]));
+  #pragma unroll
+  for (int wk = 0; wk < bk_iters; wk++)
+  {
+    #pragma unroll
+    for (int wm = 0; wm < warp_m_acc; wm ++)
+    {
+      int a_row = warp_m_start + (wm*mma_m) + a_lane_row_base; 
+      int a_col = (wk*mma_k) + a_lane_col_base; 
+      int a_ld_addr = smem_base_a[curr_stage] + (a_col + (a_row)*BK)*sizeof(nv_bfloat16);
+      int a_reg_start = 4*wm; //a_reg looks like (warp_m_acc,4) in shape 
+      asm volatile(
+        "ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0, %1, %2, %3}, [%4];"
+        : "=r"(ra[a_reg_start + 0]), "=r"(ra[a_reg_start + 1]), "=r"(ra[a_reg_start + 2]), "=r"(ra[a_reg_start + 3])
+        : "r"(a_ld_addr)
+      );
+    }
+
+    #pragma unroll
+    for (int wn = 0; wn < warp_n_acc/2; wn++)
+    {
+      int b_row = (wk*mma_k) + b_lane_row_base;
+      int b_col = warp_n_start + (wn*mma_n*2) + b_lane_col_base;
+      int b_ld_addr = smem_base_b[curr_stage] + (b_row + (b_col)*BK)*sizeof(nv_bfloat16);
+      int b_reg_start = 4*wn; // double loading b_reg looks like (warp_n_acc, 2) --> (warp_n_acc/2, 4)
+      asm volatile(
+        "ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0, %1, %2, %3}, [%4];"
+        : "=r"(rb[b_reg_start + 0]), "=r"(rb[b_reg_start + 1]), "=r"(rb[b_reg_start + 2]), "=r"(rb[b_reg_start + 3])
+        : "r"(b_ld_addr)
+      );
+    }
+    #pragma unroll
+    for (int wm = 0; wm < warp_m_acc; wm ++)
+    {
+      #pragma unroll
+      for (int wn = 0; wn < warp_n_acc; wn++)
+      {
+        int a_reg_start = 4*wm;
+        int b_reg_start = 2*wn; //back to looking at it like (warp_n_acc, 2)
+        int c_reg_start = 4*(wn + (wm)*warp_m_acc);
+        asm volatile(
+          "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
+          "{%0, %1, %2, %3}, "
+          "{%4, %5, %6, %7}, "
+          "{%8, %9}, "
+          "{%10, %11, %12, %13};\n"
+          : "=f"(rc[c_reg_start + 0]), "=f"(rc[c_reg_start + 1]), "=f"(rc[c_reg_start + 2]), "=f"(rc[c_reg_start + 3])
+          : "r"(ra[a_reg_start + 0]), "r"(ra[a_reg_start + 1]), "r"(ra[a_reg_start + 2]), "r"(ra[a_reg_start + 3]),
+            "r"(rb[b_reg_start + 0]), "r"(rb[b_reg_start + 1]),
+            "f"(rc[c_reg_start + 0]), "f"(rc[c_reg_start + 1]), "f"(rc[c_reg_start + 2]), "f"(rc[c_reg_start + 3])
+        );
+
+      }
+    }
+
+  }
 
   __syncthreads();
   float2* C2 = reinterpret_cast<float2*>(C); 
@@ -296,29 +357,39 @@ int main()
   
   C_ref.to_host();
 
-  float max_err = 0.0f;
+  float max_rel_err = 0.0f;
+  float max_abs_err = 0.0f;
+
+  const float eps = 1e-6f;     // protects divide-by-zero
+  const float rel_tol = 1e-2f; // bf16 tensor core tolerance
 
   for (int i = 0; i < M; ++i)
   {
-    for (int j = 0; j < N; ++j)
-    {
-      float ref = C_ref.h_ptr[i*N + j];
-      float gpu = C.h_ptr[i*N + j];
-
-      float err = fabsf(ref - gpu);
-      max_err = fmaxf(max_err, err);
-
-      if (err > 1e-2f)
+      for (int j = 0; j < N; ++j)
       {
-        printf("Mismatch at (%d,%d): ref=%f gpu=%f\n",
-              i, j, ref, gpu);
-        goto done;
+          float ref = C_ref.h_ptr[i * N + j];
+          float gpu = C.h_ptr[i * N + j];
+
+          float abs_err = fabsf(ref - gpu);
+          float rel_err = abs_err / fmaxf(fabsf(ref), eps);
+
+          max_abs_err = fmaxf(max_abs_err, abs_err);
+          max_rel_err = fmaxf(max_rel_err, rel_err);
+
+          if (rel_err > rel_tol)
+          {
+              printf(
+                  "Mismatch at (%d,%d): ref=%f gpu=%f | abs=%e rel=%e\n",
+                  i, j, ref, gpu, abs_err, rel_err
+              );
+              goto done;
+          }
       }
-    }
   }
 
   done:
-  printf("Max error: %f\n", max_err);
+  printf("Max abs error : %e\n", max_abs_err);
+  printf("Max rel error : %e\n", max_rel_err);
 
 
 printf(" \n ================= C_actual ============ \n");
@@ -391,6 +462,7 @@ C.pretty_print();
 }
 
 __global__ void naive_gemm_ref(
+
     const nv_bfloat16* A,
     const nv_bfloat16* B,
     float* C,
@@ -405,9 +477,20 @@ __global__ void naive_gemm_ref(
 
     for (int k = 0; k < K; ++k)
     {
-        float a = __bfloat162float(A[row * K + k]);   // row-major
-        float b = __bfloat162float(B[col * K + k]);   // col-major
-        acc += a * b;
+        // load bf16
+        nv_bfloat16 a_bf = A[row * K + k];
+        nv_bfloat16 b_bf = B[col * K + k];
+
+        // convert to float for multiply
+        float a = __bfloat162float(a_bf);
+        float b = __bfloat162float(b_bf);
+
+        // emulate tensor-core behavior:
+        // multiply then round product back to bf16
+        nv_bfloat16 prod_bf = __float2bfloat16_rn(a * b);
+
+        // accumulate in fp32
+        acc += __bfloat162float(prod_bf);
     }
 
     C[row * N + col] = acc;
