@@ -4,8 +4,8 @@ constexpr int mma_m = 16;
 constexpr int mma_n = 8;
 constexpr int mma_k = 16; 
 
-constexpr int warp_m_acc = 2; 
-constexpr int warp_n_acc = 4; 
+constexpr int warp_m_acc = 4; 
+constexpr int warp_n_acc = 2; 
 constexpr int bk_iters = 4;
 
 constexpr int warp_m = 4; 
@@ -197,7 +197,7 @@ __global__ void one_warp_ilp (__grid_constant__ const CUtensorMap gA,
         {
           int a_reg_start = 4*wm;
           int b_reg_start = 2*wn; //back to looking at it like (warp_n_acc, 2)
-          int c_reg_start = 4*(wn + (wm)*warp_m_acc);
+          int c_reg_start = 4*(wn + (wm)*warp_n_acc);
           asm volatile(
             "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
             "{%0, %1, %2, %3}, "
@@ -219,9 +219,7 @@ __global__ void one_warp_ilp (__grid_constant__ const CUtensorMap gA,
   //epilogue
   int bk = num_block_k_iters-1;
   int curr_stage = bk % 2; 
-  int next_stage = (bk+1) % 2; 
-  int curr_bk_offset = bk*BK; 
-  int next_bk_offset = (bk+1)*BK;
+
 
   bar[curr_stage].wait(std::move(token[curr_stage]));
   #pragma unroll
@@ -262,7 +260,7 @@ __global__ void one_warp_ilp (__grid_constant__ const CUtensorMap gA,
       {
         int a_reg_start = 4*wm;
         int b_reg_start = 2*wn; //back to looking at it like (warp_n_acc, 2)
-        int c_reg_start = 4*(wn + (wm)*warp_m_acc);
+        int c_reg_start = 4*(wn + (wm)*warp_n_acc);
         asm volatile(
           "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
           "{%0, %1, %2, %3}, "
@@ -294,15 +292,19 @@ __global__ void one_warp_ilp (__grid_constant__ const CUtensorMap gA,
     {
       int c2_global_row_v0 = warp_m_start + (wm*mma_m) + lane_row + 0;
       int c2_global_row_v1 = warp_m_start + (wm*mma_m) + lane_row + 8; 
-      int c2_global_col_v0 = (warp_n_start/2) + ((int)((wn*mma_n)/2)) + lane_col; 
-      int c2_global_col_v1 = (warp_n_start/2) + ((int)((wn*mma_n)/2)) + lane_col;
+      int c_global_col_elem =
+          warp_n_start          // element space
+        + wn * mma_n
+        + lane_col * 2;         // because float2
+
+      int c2_global_col = c_global_col_elem >> 1;
       //dont worry I shall annotate both this kernels indexing and one_warp_one_mma.cu 
       // and I shall very carefully extract the index maps and tiling isomorphisms. 
-      int c_reg_start = ((wn*4) + (wm*warp_m_acc*4));
+      int c_reg_start = ((wn*4) + (wm*warp_n_acc*4));
       float2 v0 = {rc[c_reg_start + 0], rc[c_reg_start + 1]}; 
       float2 v1 = {rc[c_reg_start + 2], rc[c_reg_start + 3]}; 
-      C2[(c2_global_row_v0)*ldc2 + c2_global_col_v0] = v0; 
-      C2[(c2_global_row_v1)*ldc2 + c2_global_col_v1] = v1; 
+      C2[(c2_global_row_v0)*ldc2 + c2_global_col] = v0; 
+      C2[(c2_global_row_v1)*ldc2 + c2_global_col] = v1; 
     }
   }
 
