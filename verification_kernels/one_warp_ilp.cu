@@ -3,11 +3,10 @@
 constexpr int mma_m = 16; 
 constexpr int mma_n = 8;
 constexpr int mma_k = 16; 
-constexpr int pipe_depth = 1; 
-constexpr int bk_iters = 16;
+
 constexpr int warp_m_acc = 4; 
 constexpr int warp_n_acc = 4; 
-
+constexpr int bk_iters = 16;
 constexpr int BK = bk_iters*mma_k; 
 constexpr int BM = mma_m*warp_m_acc; 
 constexpr int BN = mma_n*warp_n_acc; 
@@ -27,7 +26,7 @@ constexpr int block_size = 32;
 constexpr int grid_size = 1;
 
 
-__global__ void one_warp_many_stages_acc_matmul (__grid_constant__ const CUtensorMap gA, 
+__global__ void one_warp_ilp (__grid_constant__ const CUtensorMap gA, 
   __grid_constant__ const CUtensorMap gB,
   float* C)
 
@@ -43,8 +42,8 @@ __global__ void one_warp_many_stages_acc_matmul (__grid_constant__ const CUtenso
 
   uint32_t smem_base_a = static_cast<uint32_t>(__cvta_generic_to_shared(As));
   uint32_t smem_base_b = static_cast<uint32_t>(__cvta_generic_to_shared(Bs));
-  uint32_t ra[pipe_depth*warp_m_acc*4]; 
-  uint32_t rb[pipe_depth*warp_n_acc*2]; 
+  uint32_t ra[warp_m_acc*4]; 
+  uint32_t rb[warp_n_acc*2]; 
   float rc[warp_m_acc*warp_n_acc*4] = {0.0f}; 
 
 
@@ -84,151 +83,65 @@ __global__ void one_warp_many_stages_acc_matmul (__grid_constant__ const CUtenso
   int a_lane_row_base = l % 16;
   int a_lane_col_base = (l / 16) * 8;
 
-  int b_lane_row_base = (l / 8) * 8;
-  int b_lane_col_base = l % 8;
+  int b_lane_row_base = 8 * ((l / 8) % 2);
+  int b_lane_col_base = (8 * (l / 16)) + (l % 8);
 
-  //prologue 
-
-  for (int s = 0; s < pipe_depth; s++)
+  #pragma unroll
+  for (int wk = 0; wk < bk_iters; wk++)
   {
+    #pragma unroll
     for (int wm = 0; wm < warp_m_acc; wm ++)
     {
       int a_row = (wm*mma_m) + a_lane_row_base; 
-      int a_col = ((s)*mma_k) + a_lane_col_base;
+      int a_col = (wk*mma_k) + a_lane_col_base; 
       int a_ld_addr = smem_base_a + (a_col + (a_row)*BK)*sizeof(nv_bfloat16);
-      int a_reg_start = ((s*4) + (wm*pipe_depth*4));
-
+      int a_reg_start = 4*wm; //a_reg looks like (warp_m_acc,4) in shape 
       asm volatile(
         "ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0, %1, %2, %3}, [%4];"
         : "=r"(ra[a_reg_start + 0]), "=r"(ra[a_reg_start + 1]), "=r"(ra[a_reg_start + 2]), "=r"(ra[a_reg_start + 3])
         : "r"(a_ld_addr)
       );
-
     }
 
-    for (int wn = 0; wn < warp_n_acc; wn ++)
-    {
-      int b_row = ((s)*mma_k) + b_lane_row_base; 
-      int b_col = (wn*mma_n) + b_lane_col_base; 
-      
-      int b_ld_addr = smem_base_b + (b_row + (b_col)*BK)*sizeof(nv_bfloat16); 
-      int b_reg_start = ((s*2)+(wn*pipe_depth*2));
-
-      asm volatile(
-        "ldmatrix.sync.aligned.m8n8.x2.shared.b16 {%0, %1}, [%2];"
-        : "=r"(rb[b_reg_start+0]), "=r"(rb[b_reg_start+1]) 
-        : "r"(b_ld_addr)
-        );
-
-    }
-  }
-
-  for (int t = 0; t < bk_iters-pipe_depth; t++)
-  {
-    int curr_s = t % pipe_depth; 
-    int next_s = (t + pipe_depth) % pipe_depth;
-    int next_tile = t + pipe_depth;
-    
     #pragma unroll
-      for (int wm = 0; wm < warp_m_acc; wm++)
-      {
-        #pragma unroll
-        for (int wn = 0; wn < warp_n_acc; wn++)
-        {
-         
-          int a_reg_start = ((curr_s*4) + (wm*pipe_depth*4));
-          int b_reg_start = ((curr_s*2)+(wn*pipe_depth*2));
-          int c_reg_start = ((wn*4) + (wm*warp_m_acc*4));
-          
-          
-
-            asm volatile(
-            "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
-            "{%0, %1, %2, %3}, "
-            "{%4, %5, %6, %7}, "
-            "{%8, %9}, "
-            "{%10, %11, %12, %13};\n"
-            : "=f"(rc[c_reg_start + 0]), "=f"(rc[c_reg_start + 1]), "=f"(rc[c_reg_start + 2]), "=f"(rc[c_reg_start + 3])
-            : "r"(ra[a_reg_start + 0]), "r"(ra[a_reg_start + 1]), "r"(ra[a_reg_start + 2]), "r"(ra[a_reg_start + 3]),
-              "r"(rb[b_reg_start + 0]), "r"(rb[b_reg_start + 1]),
-              "f"(rc[c_reg_start + 0]), "f"(rc[c_reg_start + 1]), "f"(rc[c_reg_start + 2]), "f"(rc[c_reg_start + 3])
-          );
-
-        }
-      }
-
-    
-    for (int wm = 0; wm < warp_m_acc; wm ++)
+    for (int wn = 0; wn < warp_n_acc/2; wn++)
     {
-      int a_row = (wm*mma_m) + a_lane_row_base; 
-      int a_col = ((next_tile)*mma_k) + a_lane_col_base;
-      int a_ld_addr = smem_base_a + (a_col + (a_row)*BK)*sizeof(nv_bfloat16);
-      int a_reg_start = ((next_s*4) + (wm*pipe_depth*4));
-
+      int b_row = (wk*mma_k) + b_lane_row_base;
+      int b_col = (wn*mma_n*2) + b_lane_col_base;
+      int b_ld_addr = smem_base_b + (b_row + (b_col)*BK)*sizeof(nv_bfloat16);
+      int b_reg_start = 4*wn; // double loading b_reg looks like (warp_n_acc, 2) --> (warp_n_acc/2, 4)
       asm volatile(
         "ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0, %1, %2, %3}, [%4];"
-        : "=r"(ra[a_reg_start + 0]), "=r"(ra[a_reg_start + 1]), "=r"(ra[a_reg_start + 2]), "=r"(ra[a_reg_start + 3])
-        : "r"(a_ld_addr)
-      );
-
-    }
-
-    for (int wn = 0; wn < warp_n_acc; wn ++)
-    {
-      int b_row = ((next_tile)*mma_k) + b_lane_row_base; 
-      int b_col = (wn*mma_n) + b_lane_col_base; 
-      
-      int b_ld_addr = smem_base_b + (b_row + (b_col)*BK)*sizeof(nv_bfloat16); 
-      int b_reg_start = ((next_s*2)+(wn*pipe_depth*2));
-
-      asm volatile(
-        "ldmatrix.sync.aligned.m8n8.x2.shared.b16 {%0, %1}, [%2];"
-        : "=r"(rb[b_reg_start+0]), "=r"(rb[b_reg_start+1]) 
+        : "=r"(rb[b_reg_start + 0]), "=r"(rb[b_reg_start + 1]), "=r"(rb[b_reg_start + 2]), "=r"(rb[b_reg_start + 3])
         : "r"(b_ld_addr)
+      );
+    }
+    #pragma unroll
+    for (int wm = 0; wm < warp_m_acc; wm ++)
+    {
+      #pragma unroll
+      for (int wn = 0; wn < warp_n_acc; wn++)
+      {
+        int a_reg_start = 4*wm;
+        int b_reg_start = 2*wn; //back to looking at it like (warp_n_acc, 2)
+        int c_reg_start = 4*(wn + (wm)*warp_m_acc);
+        asm volatile(
+          "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
+          "{%0, %1, %2, %3}, "
+          "{%4, %5, %6, %7}, "
+          "{%8, %9}, "
+          "{%10, %11, %12, %13};\n"
+          : "=f"(rc[c_reg_start + 0]), "=f"(rc[c_reg_start + 1]), "=f"(rc[c_reg_start + 2]), "=f"(rc[c_reg_start + 3])
+          : "r"(ra[a_reg_start + 0]), "r"(ra[a_reg_start + 1]), "r"(ra[a_reg_start + 2]), "r"(ra[a_reg_start + 3]),
+            "r"(rb[b_reg_start + 0]), "r"(rb[b_reg_start + 1]),
+            "f"(rc[c_reg_start + 0]), "f"(rc[c_reg_start + 1]), "f"(rc[c_reg_start + 2]), "f"(rc[c_reg_start + 3])
         );
 
+      }
     }
 
   }
-
-  for (int t = bk_iters-pipe_depth; t < bk_iters; t++)
-  {
-    int curr_s = t % pipe_depth; 
-
-    
-    #pragma unroll
-      for (int wm = 0; wm < warp_m_acc; wm++)
-      {
-        #pragma unroll
-        for (int wn = 0; wn < warp_n_acc; wn++)
-        {
-         
-          int a_reg_start = ((curr_s*4) + (wm*pipe_depth*4));
-          int b_reg_start = ((curr_s*2)+(wn*pipe_depth*2));
-          int c_reg_start = ((wn*4) + (wm*warp_m_acc*4));
-          
-          
-
-            asm volatile(
-            "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
-            "{%0, %1, %2, %3}, "
-            "{%4, %5, %6, %7}, "
-            "{%8, %9}, "
-            "{%10, %11, %12, %13};\n"
-            : "=f"(rc[c_reg_start + 0]), "=f"(rc[c_reg_start + 1]), "=f"(rc[c_reg_start + 2]), "=f"(rc[c_reg_start + 3])
-            : "r"(ra[a_reg_start + 0]), "r"(ra[a_reg_start + 1]), "r"(ra[a_reg_start + 2]), "r"(ra[a_reg_start + 3]),
-              "r"(rb[b_reg_start + 0]), "r"(rb[b_reg_start + 1]),
-              "f"(rc[c_reg_start + 0]), "f"(rc[c_reg_start + 1]), "f"(rc[c_reg_start + 2]), "f"(rc[c_reg_start + 3])
-          );
-
-        }
-      }
-  }
-
-
- 
   __syncthreads();
-
   float2* C2 = reinterpret_cast<float2*>(C); 
   int lane_row = l/4; 
   int lane_col = l%4; 
@@ -281,7 +194,7 @@ int main()
   NaiveLauncher launcher(grid_size, 1, block_size,shared_allocate_bytes);
 
   //correctness launch
-  launcher.launch(one_warp_many_stages_acc_matmul, a_map, b_map, C.d_ptr);
+  launcher.launch(one_warp_ilp, a_map, b_map, C.d_ptr);
   cudaDeviceSynchronize(); 
   C.to_host(); 
   
@@ -351,7 +264,7 @@ C.pretty_print();
   // warmup
   for (int i = 0; i < warmup_iters; ++i)
   {
-    launcher.launch(one_warp_many_stages_acc_matmul, a_map, b_map, C.d_ptr);
+    launcher.launch(one_warp_ilp, a_map, b_map, C.d_ptr);
   }
   cudaDeviceSynchronize();
 
@@ -364,7 +277,7 @@ C.pretty_print();
 
   for (int i = 0; i < bench_iters; ++i)
   {
-    launcher.launch(one_warp_many_stages_acc_matmul, a_map, b_map, C.d_ptr);
+    launcher.launch(one_warp_ilp, a_map, b_map, C.d_ptr);
   }
 
   cudaEventRecord(stop);
