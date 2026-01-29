@@ -5,11 +5,11 @@ constexpr int mma_n = 8;
 constexpr int mma_k = 16; 
 
 constexpr int warp_m_acc = 2; 
-constexpr int warp_n_acc = 2; 
+constexpr int warp_n_acc = 4; 
 constexpr int bk_iters = 4;
 
-constexpr int warp_m = 2; 
-constexpr int warp_n = 2; 
+constexpr int warp_m = 4; 
+constexpr int warp_n = 4; 
 
 constexpr int BK = bk_iters*mma_k; 
 constexpr int BM = warp_m*mma_m*warp_m_acc; 
@@ -462,9 +462,8 @@ C.pretty_print();
 }
 
 __global__ void naive_gemm_ref(
-
-    const nv_bfloat16* A,
-    const nv_bfloat16* B,
+    const nv_bfloat16* A,   // [M, K] row-major
+    const nv_bfloat16* B,   // [K, N] column-major
     float* C,
     int M, int N, int K)
 {
@@ -477,20 +476,13 @@ __global__ void naive_gemm_ref(
 
     for (int k = 0; k < K; ++k)
     {
-        // load bf16
-        nv_bfloat16 a_bf = A[row * K + k];
-        nv_bfloat16 b_bf = B[col * K + k];
+        // A(i,k)
+        float a = __bfloat162float(A[row * K + k]);
 
-        // convert to float for multiply
-        float a = __bfloat162float(a_bf);
-        float b = __bfloat162float(b_bf);
+        // B(k,j) — COLUMN MAJOR
+        float b = __bfloat162float(B[col * K + k]);
 
-        // emulate tensor-core behavior:
-        // multiply then round product back to bf16
-        nv_bfloat16 prod_bf = __float2bfloat16_rn(a * b);
-
-        // accumulate in fp32
-        acc += __bfloat162float(prod_bf);
+        acc += a * b;
     }
 
     C[row * N + col] = acc;
