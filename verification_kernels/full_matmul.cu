@@ -17,8 +17,11 @@ constexpr int BN = warp_n*mma_n*warp_n_acc;
 
 
 constexpr int K = 4096; 
-constexpr int M = BM; 
-constexpr int N = BN; 
+constexpr int M = 4096; 
+constexpr int N = 4096; 
+
+constexpr int GM = M/BM; 
+constexpr int GN = N/BN;
 
 constexpr int num_block_k_iters = K / BK;
 
@@ -30,7 +33,7 @@ using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace ptx = cuda::ptx;
 
 constexpr int block_size = warp_m*warp_n*32; 
-constexpr int grid_size = 1;
+constexpr int grid_size = GM*GN;
 
 __global__ void naive_gemm_ref(
     const nv_bfloat16* A,
@@ -91,6 +94,8 @@ __global__ void one_warp_ilp (__grid_constant__ const CUtensorMap gA,
   int w = threadIdx.x / 32;
   int warp_m_start = (w / warp_n)*warp_m_acc*mma_m; 
   int warp_n_start = (w % warp_n)*warp_n_acc*mma_n; 
+  int block_m_start = (blockIdx.x/ GN)*BM; 
+  int block_n_start = (blockIdx.x % GN)*BN;
 
 
   __shared__ barrier bar[2]; 
@@ -109,8 +114,8 @@ __global__ void one_warp_ilp (__grid_constant__ const CUtensorMap gA,
   {
      
 
-    int32_t coords_A[2] = {0,0};
-    int32_t coords_B[2] = {0,0}; 
+    int32_t coords_A[2] = {0,block_m_start};
+    int32_t coords_B[2] = {0,block_n_start}; 
 
     ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, As[0], &gA, coords_A, 
       cuda::device::barrier_native_handle(bar[0]));
@@ -143,8 +148,8 @@ __global__ void one_warp_ilp (__grid_constant__ const CUtensorMap gA,
     {
       
 
-      int32_t coords_A[2] = {next_bk_offset,0};
-      int32_t coords_B[2] = {next_bk_offset,0}; 
+      int32_t coords_A[2] = {next_bk_offset,block_m_start};
+      int32_t coords_B[2] = {next_bk_offset,block_n_start}; 
 
       ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, As[next_stage], &gA, coords_A, 
         cuda::device::barrier_native_handle(bar[next_stage]));
@@ -290,10 +295,11 @@ __global__ void one_warp_ilp (__grid_constant__ const CUtensorMap gA,
     #pragma unroll
     for (int wn = 0; wn < warp_n_acc; wn++)
     {
-      int c2_global_row_v0 = warp_m_start + (wm*mma_m) + lane_row + 0;
-      int c2_global_row_v1 = warp_m_start + (wm*mma_m) + lane_row + 8; 
-      int c_global_col_elem =
-          warp_n_start          // element space
+      int c2_global_row_v0 = block_m_start + warp_m_start + (wm*mma_m) + lane_row + 0;
+      int c2_global_row_v1 = block_m_start + warp_m_start + (wm*mma_m) + lane_row + 8; 
+      int c_global_col_elem = 
+        block_n_start
+        + warp_n_start          // element space
         + wn * mma_n
         + lane_col * 2;         // because float2
 
@@ -395,9 +401,9 @@ int main()
 
 
 printf(" \n ================= C_actual ============ \n");
-C_ref.pretty_print(); 
+//C_ref.pretty_print(); 
 printf("\n ================ C_computed ============= \n");
-C.pretty_print();
+//C.pretty_print();
 
 
 // ============================================================
@@ -448,11 +454,11 @@ C.pretty_print();
   double t_sec = avg_ms * 1e-3;
 
   // throughput
-  double gflops = flops / t_sec / 1e9;
+  double tflops = flops / t_sec / 1e12;
 
   printf("Problem size: M=%d N=%d K=%d\n", M, N, K);
   printf("Total FLOPs per launch: %.0f\n", flops);
-  printf("Throughput: %.2f GFLOP/s\n", gflops);
+  printf("Throughput: %.2f TFLOP/s\n", tflops);
 
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
