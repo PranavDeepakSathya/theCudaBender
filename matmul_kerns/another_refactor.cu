@@ -56,6 +56,8 @@ __global__ void verif_matmul(
   }
 }
 
+
+
 __global__ void matmul (__grid_constant__ const CUtensorMap gA, __grid_constant__ const CUtensorMap gB,
   NaiveTensor<float>::DeviceView C)
 

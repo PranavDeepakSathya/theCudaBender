@@ -158,7 +158,7 @@ private:
         std::random_device rd;
         std::mt19937 gen(rd());
         if (rand_dist == DIST_FLOAT_NEG1_1) {
-            std::uniform_real_distribution<float> dist(0.0001f, 1.0f);
+            std::uniform_real_distribution<float> dist(-0.1f, 0.1f);
             for(size_t i=0; i<size; ++i) h_ptr[i] = static_cast<T>(dist(gen));
         } else {
             std::uniform_int_distribution<int> dist(0, 100);

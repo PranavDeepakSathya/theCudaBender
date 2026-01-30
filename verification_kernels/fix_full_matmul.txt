@@ -1,0 +1,17 @@
+Max abs error : 6.750061e+00
+Max rel error : 6.667715e-03
+ 
+ ================= C_actual ============ 
+
+ ================ C_computed ============= 
+
+=========================================
+Warmup iters   : 20
+Benchmark iters: 200
+Average kernel time: 1.123429 ms
+=========================================
+
+Problem size: M=4096 N=4096 K=4096
+Total FLOPs per launch: 137438953472
+Throughput: 122.34 TFLOP/s
+Shared memory per block: 99328 bytes (97.00 KB)
