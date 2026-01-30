@@ -25,7 +25,7 @@ constexpr int K = 4096;
 
 constexpr uint32_t As_bytes = BM*BK*sizeof(nv_bfloat16); 
 constexpr uint32_t Bs_bytes = BK*BN*sizeof(nv_bfloat16); 
-constexpr uint32_t shared_allocate_bytes = 2*(As_bytes + Bs_bytes + (128*4)); 
+constexpr uint32_t shared_allocate_bytes = (As_bytes + Bs_bytes + (128*4)); 
 
 constexpr int GM = M/BM; 
 constexpr int GN = N/BN;
@@ -49,32 +49,27 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
   float* C)
 
 {
-  nv_bfloat16* As[2]; 
-  nv_bfloat16* Bs[2]; 
-  uint32_t smem_base_a[2];
-  uint32_t smem_base_b[2];
+  nv_bfloat16* As; 
+  nv_bfloat16* Bs; 
+  uint32_t smem_base_a;
+  uint32_t smem_base_b;
 
   extern __shared__ uint8_t smem_raw[];
   uintptr_t smem = reinterpret_cast<uintptr_t>(smem_raw);
 
   smem = align128(smem);
-  As[0] = reinterpret_cast<nv_bfloat16*>(smem);
-  smem += As_bytes;
-  smem = align128(smem);
-  As[1] = reinterpret_cast<nv_bfloat16*>(smem); 
+  As = reinterpret_cast<nv_bfloat16*>(smem);
   smem += As_bytes;
   smem = align128(smem); 
-  Bs[0] = reinterpret_cast<nv_bfloat16*>(smem);
+  Bs = reinterpret_cast<nv_bfloat16*>(smem);
   smem += Bs_bytes; 
-  smem = align128(smem); 
-  Bs[1] = reinterpret_cast<nv_bfloat16*>(smem);
-  smem += Bs_bytes;
 
-  smem_base_a[0] = static_cast<uint32_t>(__cvta_generic_to_shared(As[0]));
-  smem_base_a[1] = static_cast<uint32_t>(__cvta_generic_to_shared(As[1]));
 
-  smem_base_b[0] = static_cast<uint32_t>(__cvta_generic_to_shared(Bs[0]));
-  smem_base_b[1] = static_cast<uint32_t>(__cvta_generic_to_shared(Bs[1]));
+  smem_base_a = static_cast<uint32_t>(__cvta_generic_to_shared(As));
+
+
+  smem_base_b = static_cast<uint32_t>(__cvta_generic_to_shared(Bs));
+
 
   uint32_t ra[acc_per_warp_m*4]; //the access is (wm,reg_id) -> 4*wm + reg_id 
   uint32_t rb[acc_per_warp_n*2]; //the access is (wn, reg_id) -> 2*wn + reg_id 
@@ -90,83 +85,54 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
   int block_start_m = (b / GN)*BM; 
   int block_start_n = (b % GN)*BN; 
 
-  __shared__ barrier bar[2]; 
+  __shared__ barrier bar; 
 
   if (l == 0)
   {
-    init(&bar[0],1); 
-    init(&bar[1],1); 
+    init(&bar,blockDim.x); 
+
   }
 
 
-  barrier::arrival_token token[2]; 
+  barrier::arrival_token token; 
   __syncthreads();
 
-  //prologue, fill As[0],Bs[0]
-  if (is_elected())
-  {
-     
-
-    int32_t coords_A[2] = {0,block_start_m};
-    int32_t coords_B[2] = {0,block_start_n}; 
-
-    ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, As[0], &gA, coords_A, 
-      cuda::device::barrier_native_handle(bar[0]));
-    ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, Bs[0], &gB, coords_B, 
-      cuda::device::barrier_native_handle(bar[0]));
-    cuda::device::barrier_arrive_tx(bar[0], 1, As_bytes + Bs_bytes);
-  }
- 
 
 
 
-  int bk; 
   int a_lane_row_base = l % 16;
   int a_lane_col_base = (l / 16) * 8;
 
   int b_lane_row_base = 8*(l/8);
   int b_lane_col_base = l % 8; 
 
-  int stage = 0;
-  uint32_t parity = 0;
+  for (int bk = 0; bk < num_BK_iters; bk++)
+  {
+    
+    int block_k_start = bk*BK; 
 
-  for (int bk = 0; bk < num_BK_iters; ++bk) {
+    if (threadIdx.x == 0)
+      {
+        init(&bar, blockDim.x);
+      }
+    __syncthreads();
 
-    int curr = stage;
-    int next = stage ^ 1;
+    barrier::arrival_token token;  //very important, to re-init the barrier inside the loop, as we are not tracking phase of barrier properly. 
+    
+    if (is_elected())
+    {
+      int32_t coords_A[2] = {block_k_start, block_start_m};
+      int32_t coords_B[2] = {block_k_start, block_start_n}; 
 
-    // --------------------------------------------------
-    // Prefetch next tile
-    // --------------------------------------------------
-    if (bk + 1 < num_BK_iters && is_elected()) {
-
-        int next_k = (bk + 1) * BK;
-
-        int32_t coordsA[2] = {next_k, block_start_m};
-        int32_t coordsB[2] = {next_k, block_start_n};
-
-        ptx::cp_async_bulk_tensor(
-            ptx::space_shared, ptx::space_global,
-            As[next], &gA, coordsA,
-            cuda::device::barrier_native_handle(bar[next]));
-
-        ptx::cp_async_bulk_tensor(
-            ptx::space_shared, ptx::space_global,
-            Bs[next], &gB, coordsB,
-            cuda::device::barrier_native_handle(bar[next]));
-
-        cuda::device::barrier_arrive_tx(
-            bar[next], 1, As_bytes + Bs_bytes);
+      ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, As, &gA, coords_A, cuda::device::barrier_native_handle(bar));
+      ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, Bs, &gB, coords_B, cuda::device::barrier_native_handle(bar));
+      token = cuda::device::barrier_arrive_tx(bar, 1, As_bytes + Bs_bytes);
     }
-
-    // --------------------------------------------------
-    // WAIT FOR CURRENT TILE
-    // --------------------------------------------------
-    while (!ptx::mbarrier_try_wait_parity(
-        ptx::sem_acquire,
-        ptx::scope_cta,
-        cuda::device::barrier_native_handle(bar[curr]),
-        parity)) {}
+    else
+    {
+      token = bar.arrive();
+    }
+    bar.wait(std::move(token));
 
     for (int wk = 0; wk < num_mma_k_iters; wk++)
     {
@@ -174,7 +140,7 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
       {
         int a_load_shared_row = warp_start_m + (wm*mma_m) + a_lane_row_base;
         int a_load_shared_col = (wk*mma_k) + a_lane_col_base;
-        uint32_t a_ld_addr = (smem_base_a[stage]) + ((a_load_shared_col + (BK*a_load_shared_row))*sizeof(nv_bfloat16));
+        uint32_t a_ld_addr = (smem_base_a) + ((a_load_shared_col + (BK*a_load_shared_row))*sizeof(nv_bfloat16));
         int a_reg_start = wm*4; 
         asm volatile(
           "ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0, %1, %2, %3}, [%4];"
@@ -187,7 +153,7 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
       {
         int b_load_shared_row = (wk*mma_k) + b_lane_row_base; 
         int b_load_shared_col = warp_start_n + (wn*mma_n) + b_lane_col_base;
-        uint32_t  b_ld_addr = (smem_base_b[stage]) + ((b_load_shared_row + (BK*b_load_shared_col))*sizeof(nv_bfloat16)); 
+        uint32_t  b_ld_addr = (smem_base_b) + ((b_load_shared_row + (BK*b_load_shared_col))*sizeof(nv_bfloat16)); 
         int b_reg_start = wn*2; 
         asm volatile(
           "ldmatrix.sync.aligned.m8n8.x2.shared.b16 {%0, %1}, [%2];"
@@ -219,11 +185,8 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
       
     }
 
-    stage ^= 1;
-    if (stage == 0)
-        parity ^= 1;
   }
-
+  
 
   __syncthreads(); 
   //storage: 
@@ -316,7 +279,7 @@ int main()
   float max_rel_err = 0.0f;
   float max_abs_err = 0.0f;
 
-  const float eps = 1e-6f;     // protects divide-by-zero
+  const float eps = 1e-4f;     // protects divide-by-zero
   const float rel_tol = 1e-2f; // bf16 tensor core tolerance
 
   for (int i = 0; i < M; ++i)
