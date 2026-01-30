@@ -1,5 +1,5 @@
-Max abs error : 6.866455e-04
-Max rel error : 1.021615e+00
+Max abs error : 6.790161e-04
+Max rel error : 1.001358e+00
 
 Total elements with abs error > 1.0e+00 : 0
  
@@ -10,10 +10,10 @@ Total elements with abs error > 1.0e+00 : 0
 =========================================
 Warmup iters   : 20
 Benchmark iters: 200
-Average kernel time: 1.109232 ms
+Average kernel time: 1.109116 ms
 =========================================
 
 Problem size: M=4096 N=4096 K=4096
 Total FLOPs per launch: 137438953472
-Throughput: 123.90 TFLOP/s
-Shared memory per block: 25088 bytes (24.50 KB)
+Throughput: 123.92 TFLOP/s
+Shared memory per block: 24832 bytes (24.25 KB)

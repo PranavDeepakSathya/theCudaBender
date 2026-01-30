@@ -1,4 +1,4 @@
-#include "../atoms/all.cuh"
+#include "../../atoms/all.cuh"
 
 constexpr int mma_m = 16; 
 constexpr int mma_n = 8; 
@@ -25,7 +25,7 @@ constexpr int K = 4096;
 
 constexpr uint32_t As_bytes = BM*BK*sizeof(nv_bfloat16); 
 constexpr uint32_t Bs_bytes = BK*BN*sizeof(nv_bfloat16); 
-constexpr uint32_t shared_allocate_bytes = (As_bytes + Bs_bytes + (128*4)); 
+constexpr uint32_t shared_allocate_bytes = (As_bytes + Bs_bytes + (128*2)); 
 
 constexpr int GM = M/BM; 
 constexpr int GN = N/BN;
