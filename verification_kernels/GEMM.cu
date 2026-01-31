@@ -92,6 +92,8 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
 
   __shared__ barrier bar[2]; 
 
+
+
   if (l == 0)
   {
     init(&bar[0],1); 
@@ -99,28 +101,47 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
   }
 
 
-  barrier::arrival_token token[2]; 
   __syncthreads();
 
-  //prologue, fill As[0],Bs[0]
-  if (is_elected())
-  {
-     
 
-    int32_t coords_A[2] = {0,block_start_m};
-    int32_t coords_B[2] = {0,block_start_n}; 
+  if (is_elected()) {
 
-    ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, As[0], &gA, coords_A, 
-      cuda::device::barrier_native_handle(bar[0]));
-    ptx::cp_async_bulk_tensor(ptx::space_shared, ptx::space_global, Bs[0], &gB, coords_B, 
-      cuda::device::barrier_native_handle(bar[0]));
+    int32_t A0[2] = {0 * BK, block_start_m};
+    int32_t B0[2] = {0 * BK, block_start_n};
+
+    ptx::cp_async_bulk_tensor(
+        ptx::space_shared, ptx::space_global,
+        As[0], &gA, A0,
+        cuda::device::barrier_native_handle(bar[0]));
+
+    ptx::cp_async_bulk_tensor(
+        ptx::space_shared, ptx::space_global,
+        Bs[0], &gB, B0,
+        cuda::device::barrier_native_handle(bar[0]));
+
     cuda::device::barrier_arrive_tx(bar[0], 1, As_bytes + Bs_bytes);
+
+
+    int32_t A1[2] = {1 * BK, block_start_m};
+    int32_t B1[2] = {1 * BK, block_start_n};
+
+    ptx::cp_async_bulk_tensor(
+        ptx::space_shared, ptx::space_global,
+        As[1], &gA, A1,
+        cuda::device::barrier_native_handle(bar[1]));
+
+    ptx::cp_async_bulk_tensor(
+        ptx::space_shared, ptx::space_global,
+        Bs[1], &gB, B1,
+        cuda::device::barrier_native_handle(bar[1]));
+
+    cuda::device::barrier_arrive_tx(bar[1], 1, As_bytes + Bs_bytes);
   }
- 
 
 
 
-  int bk; 
+
+
   int a_lane_row_base = l % 16;
   int a_lane_col_base = (l / 16) * 8;
 
@@ -132,41 +153,12 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
 
   for (int bk = 0; bk < num_BK_iters; ++bk) {
 
-    int curr = stage;
-    int next = stage ^ 1;
 
-    // --------------------------------------------------
-    // Prefetch next tile
-    // --------------------------------------------------
-    if (bk + 1 < num_BK_iters && is_elected()) {
-
-        int next_k = (bk + 1) * BK;
-
-        int32_t coordsA[2] = {next_k, block_start_m};
-        int32_t coordsB[2] = {next_k, block_start_n};
-
-        ptx::cp_async_bulk_tensor(
-            ptx::space_shared, ptx::space_global,
-            As[next], &gA, coordsA,
-            cuda::device::barrier_native_handle(bar[next]));
-
-        ptx::cp_async_bulk_tensor(
-            ptx::space_shared, ptx::space_global,
-            Bs[next], &gB, coordsB,
-            cuda::device::barrier_native_handle(bar[next]));
-
-        cuda::device::barrier_arrive_tx(
-            bar[next], 1, As_bytes + Bs_bytes);
-    }
-
-    // --------------------------------------------------
-    // WAIT FOR CURRENT TILE
-    // --------------------------------------------------
     while (!ptx::mbarrier_try_wait_parity(
-        ptx::sem_acquire,
-        ptx::scope_cta,
-        cuda::device::barrier_native_handle(bar[curr]),
-        parity)) {}
+    ptx::sem_acquire,
+    ptx::scope_cta,
+    cuda::device::barrier_native_handle(bar[stage]),
+    parity)) {}
 
     for (int wk = 0; wk < num_mma_k_iters; wk++)
     {
@@ -219,10 +211,38 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
       
     }
 
-    stage ^= 1;
-    if (stage == 0)
+
+    int fetch = bk + 2;
+    if (fetch < num_BK_iters && is_elected()) {
+
+        int32_t coordsA[2] = {fetch * BK, block_start_m};
+        int32_t coordsB[2] = {fetch * BK, block_start_n};
+
+        ptx::cp_async_bulk_tensor(
+            ptx::space_shared, ptx::space_global,
+            As[stage], &gA, coordsA,
+            cuda::device::barrier_native_handle(bar[stage]));
+
+        ptx::cp_async_bulk_tensor(
+            ptx::space_shared, ptx::space_global,
+            Bs[stage], &gB, coordsB,
+            cuda::device::barrier_native_handle(bar[stage]));
+
+        cuda::device::barrier_arrive_tx(
+            bar[stage], 1, As_bytes + Bs_bytes);
+    }
+
+    // --------------------------------------------------
+    // ADVANCE STAGE + PARITY
+    // --------------------------------------------------
+    stage++;
+    if (stage == 2) {
+        stage = 0;
         parity ^= 1;
-  }
+    }
+ 
+
+ }
 
 
   __syncthreads(); 
