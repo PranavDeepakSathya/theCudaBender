@@ -4,7 +4,7 @@ constexpr int mma_m = 16;
 constexpr int mma_n = 8; 
 constexpr int mma_k = 16; 
 
-constexpr int acc_per_warp_m = 4; 
+constexpr int acc_per_warp_m = 2; 
 constexpr int acc_per_warp_n = 4; 
 
 constexpr int num_mma_k_iters = 2; 
@@ -211,7 +211,7 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
       
     }
 
-
+    __syncthreads();
     int fetch = bk + 2;
     if (fetch < num_BK_iters && is_elected()) {
 
