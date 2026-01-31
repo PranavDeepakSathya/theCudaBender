@@ -155,10 +155,8 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
   for (int bk = 0; bk < num_BK_iters; ++bk) {
 
 
-    while (!ptx::mbarrier_try_wait_parity(
-    ptx::sem_acquire,
-    ptx::scope_cta,
-    cuda::device::barrier_native_handle(bar[stage]),
+    
+    
     parity)) {}
     #pragma unroll
     for (int wk = 0; wk < num_mma_k_iters; wk++)
