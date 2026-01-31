@@ -1,4 +1,4 @@
-#include "../atoms/all.cuh"
+#include "../../atoms/all.cuh"
 
 constexpr int mma_m = 16; 
 constexpr int mma_n = 8; 
@@ -151,6 +151,7 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
   int stage = 0;
   uint32_t parity = 0;
 
+  #pragma unroll
   for (int bk = 0; bk < num_BK_iters; ++bk) {
 
 
@@ -159,9 +160,10 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
     ptx::scope_cta,
     cuda::device::barrier_native_handle(bar[stage]),
     parity)) {}
-
+    #pragma unroll
     for (int wk = 0; wk < num_mma_k_iters; wk++)
     {
+      #pragma unroll
       for (int wm = 0; wm < acc_per_warp_m; wm++)
       {
         int a_load_shared_row = warp_start_m + (wm*mma_m) + a_lane_row_base;
@@ -175,6 +177,7 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
         );
       }
 
+      #pragma unroll
       for (int wn = 0; wn < acc_per_warp_n; wn++)
       {
         int b_load_shared_row = (wk*mma_k) + b_lane_row_base; 
@@ -188,8 +191,10 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
         );
       }
       
+      #pragma unroll
       for (int wm = 0; wm < acc_per_warp_m; wm++)
       {
+        #pragma unroll
         for (int wn = 0; wn < acc_per_warp_n; wn++)
         {
           int a_reg_start = wm*4; 
@@ -370,7 +375,7 @@ int main()
 
   done:
   printf("Max abs error : %e\n", max_abs_err);
-  printf("Max rel error : %e\n", max_rel_err);
+  //printf("Max rel error : %e\n", max_rel_err);
   printf("\nTotal elements with abs error > %.1e : %d\n",
        abs_thresh, bad_count);
 
