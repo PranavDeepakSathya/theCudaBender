@@ -65,3 +65,36 @@ __device__ __forceinline__ uintptr_t align128(uintptr_t ptr)
 {
     return (ptr + 127) & ~uintptr_t(127);
 }
+
+__device__ __forceinline__
+void allocate_smem_tiles(
+    void* smem_raw,
+    uint32_t As_bytes,
+    uint32_t Bs_bytes,
+    int k_stages,
+    nv_bfloat16** As,          // As[k_stages]
+    nv_bfloat16** Bs,          // Bs[k_stages]
+    uint32_t* smem_base_a,     // smem byte offsets / addresses
+    uint32_t* smem_base_b
+) {
+    uintptr_t base = reinterpret_cast<uintptr_t>(smem_raw);
+    base = align128(base);
+
+    // Allocate As stages
+    #pragma unroll
+    for (int s = 0; s < k_stages; ++s) {
+        As[s] = reinterpret_cast<nv_bfloat16*>(base);
+        smem_base_a[s] = static_cast<uint32_t>(base);
+        base += As_bytes;
+        base = align128(base);
+    }
+
+    // Allocate Bs stages
+    #pragma unroll
+    for (int s = 0; s < k_stages; ++s) {
+        Bs[s] = reinterpret_cast<nv_bfloat16*>(base);
+        smem_base_b[s] = static_cast<uint32_t>(base);
+        base += Bs_bytes;
+        base = align128(base);
+    }
+}
