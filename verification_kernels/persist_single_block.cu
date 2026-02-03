@@ -69,32 +69,37 @@ if (w >= prod_warp_start)
   if (t == p_thread_id)
   {
     int stage = 0; 
-    for (int bk = 0; bk < num_BK_iters; bk++; stage++)
+    for (int bk = 0; bk < num_BK_iters; ++bk, ++stage)
     {
       if (stage ==bk_stages) stage = 0;
       empty[stage].wait(empty[stage].arrive());
 
-      int32_t coordsA[2] = {bk*BK, block_start_m};
-      int32_t coordsB[2] = {bk*BK, block_start_n};
+      int32_t coordsA[2] = {bk*BK, 0};
+      int32_t coordsB[2] = {bk*BK, 0};
 
         ptx::cp_async_bulk_tensor(
             ptx::space_shared, ptx::space_global,
             As[stage], &gA, coordsA,
-            cuda::device::barrier_native_handle(bar[stage]));
+            cuda::device::barrier_native_handle(full[stage]));
 
         ptx::cp_async_bulk_tensor(
             ptx::space_shared, ptx::space_global,
             Bs[stage], &gB, coordsB,
-            cuda::device::barrier_native_handle(bar[stage]));
+            cuda::device::barrier_native_handle(full[stage]));
 
         barrier::arrival_token _ = cuda::device::barrier_arrive_tx(
-            bar[stage], 1, As_bytes + Bs_bytes);
+            full[stage], 1, As_bytes + Bs_bytes);
 
     }
   }
 }
 else//consumer logic 
 {
+  for (int i = 0; i < bk_stages; ++i) {
+        // i initially, all buffers are considered empty; ready for write
+        barrier::arrival_token _ = empty[i].arrive();
+    }
+  
   int stage = 0; 
 
   int a_lane_row_base = l % 16;
@@ -107,12 +112,15 @@ else//consumer logic
   uint32_t rb[acc_per_warp_n*2]; //the access is (wn, reg_id) -> 2*wn + reg_id 
   float rc[acc_per_warp_m*acc_per_warp_n*4] = {0.0f}; //the access is (wm,wn,reg_id) -> acc_per_warp_n*wm*4 + wn*4 + reg_id 
 
-    for (int bk = 0; bk < num_BK_iters; bk++; stage++)
+    for (int bk = 0; bk < num_BK_iters; ++bk, ++stage)
     {
-      if (stage ==bk_stages) stage = 0;
+      if (stage == bk_stages) stage = 0;
+      full[stage].wait(full[stage].arrive());
+      
+      
 
     }
-}
+  } 
 
 
 }
