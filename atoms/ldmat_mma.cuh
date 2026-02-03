@@ -1,7 +1,7 @@
 #pragma once
 #include "utils.cuh"
 
-namespace atom {
+namespace  warp_atom {
 
 ////////////////////////////////////////////////////////////////////////////////
 // ldmatrix: A (m8n8.x4)  -> 4 regs
