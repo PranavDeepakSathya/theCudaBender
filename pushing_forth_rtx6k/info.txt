@@ -1,0 +1,23 @@
+Starting program: /root/theCudaBender/pushing_forth_rtx6k/a.out 
+warning: Error disabling address space randomization: Operation not permitted
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+[New Thread 0x7fba09086000 (LWP 2684)]
+[New Thread 0x7fba08885000 (LWP 2685)]
+[Detaching after fork from child process 2686]
+[New Thread 0x7fba01f4b000 (LWP 2694)]
+[New Thread 0x7fba0174a000 (LWP 2695)]
+
+CUDA Exception: Warp Illegal Instruction
+The exception was triggered at PC 0x7fb7ef769260  matmul(CUtensorMap_st, CUtensorMap_st, float*)
+
+Thread 1 "a.out" received signal CUDA_EXCEPTION_4, Warp Illegal Instruction.
+[Switching focus to CUDA kernel 0, grid 1, cluster (0,0,0), cluster dim (1,1,1), block (0,0,0), thread (128,0,0), device 0, sm 0, warp 4, lane 0]
+0x00007fb7ef769290 in matmul(CUtensorMap_st, CUtensorMap_st, float*)<<<(1,1,1),(160,1,1)>>> ()
+(cuda-gdb) up                                                                                                                                                  
+Initial frame selected; you cannot go up.
+(cuda-gdb) down
+Bottom (innermost) frame selected; you cannot go down.
+
+0x0000574fd053c889 
+0x7fb7ef769260 

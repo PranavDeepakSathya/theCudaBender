@@ -8,12 +8,14 @@ constexpr int num_mma_k_iters = 2;
 constexpr int WM = mma_m*acc_per_warp_m; 
 constexpr int WN = mma_n*acc_per_warp_n;
 constexpr int BK = mma_k*num_mma_k_iters;
-constexpr int warps_per_block_m = 4; 
-constexpr int warps_per_block_n = 4; 
+constexpr int warps_per_block_m = 2; 
+constexpr int warps_per_block_n = 2 ; 
 constexpr int BM = warps_per_block_m*WM; 
 constexpr int BN = warps_per_block_n*WN; 
-constexpr int M = BM; 
-constexpr int N = BN; 
+constexpr int BM_iters = 2; 
+constexpr int BN_iters = 2;
+constexpr int M = BM_iters*BM; 
+constexpr int N = BN_iters*BN; 
 constexpr int K = 4096; 
 
 
@@ -81,28 +83,33 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
     if (t == p_thread_id)
     {
       int stage = 0; 
-      #pragma unroll
-      for (int bk = 0; bk < num_BK_iters; ++bk, ++stage)
+      for (int blk_iter = 0; blk_iter < BM_iters*BN_iters; ++blk_iter, ++stage)
       {
-        if (stage ==bk_stages) stage = 0;
-        empty[stage].wait(empty[stage].arrive());
+        int blk_iter_m = (blk_iter/BN_iters)*BM;
+        int blk_iter_n = (blk_iter%BN_iters)*BN; 
 
-        int32_t coordsA[2] = {bk*BK, 0};
-        int32_t coordsB[2] = {bk*BK, 0};
+        for (int bk = 0; bk < num_BK_iters; ++bk, ++stage)
+        {
+          if (stage ==bk_stages) stage = 0;
+          empty[stage].wait(empty[stage].arrive());
 
-          ptx::cp_async_bulk_tensor(
-              ptx::space_shared, ptx::space_global,
-              As[stage], &gA, coordsA,
-              cuda::device::barrier_native_handle(full[stage]));
+          int32_t coordsA[2] = {bk*BK, blk_iter_m};
+          int32_t coordsB[2] = {bk*BK, blk_iter_n};
 
-          ptx::cp_async_bulk_tensor(
-              ptx::space_shared, ptx::space_global,
-              Bs[stage], &gB, coordsB,
-              cuda::device::barrier_native_handle(full[stage]));
+            ptx::cp_async_bulk_tensor(
+                ptx::space_shared, ptx::space_global,
+                As[stage], &gA, coordsA,
+                cuda::device::barrier_native_handle(full[stage]));
 
-          barrier::arrival_token _ = cuda::device::barrier_arrive_tx(
-              full[stage], 1, As_bytes + Bs_bytes);
+            ptx::cp_async_bulk_tensor(
+                ptx::space_shared, ptx::space_global,
+                Bs[stage], &gB, coordsB,
+                cuda::device::barrier_native_handle(full[stage]));
 
+            barrier::arrival_token _ = cuda::device::barrier_arrive_tx(
+                full[stage], 1, As_bytes + Bs_bytes);
+
+        }
       }
     }
   }
@@ -121,91 +128,94 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
 
     int b_lane_row_base = 8*(l/8);
     int b_lane_col_base = l % 8; 
-
-    uint32_t ra[acc_per_warp_m*4]; //the access is (wm,reg_id) -> 4*wm + reg_id 
-    uint32_t rb[acc_per_warp_n*2]; //the access is (wn, reg_id) -> 2*wn + reg_id 
-    float rc[acc_per_warp_m*acc_per_warp_n*4] = {0.0f}; //the access is (wm,wn,reg_id) -> acc_per_warp_n*wm*4 + wn*4 + reg_id 
-    #pragma unroll
-    for (int bk = 0; bk < num_BK_iters; ++bk, ++stage)
+    
+    for (int blk_iter = 0; blk_iter < BM_iters*BN_iters; ++blk_iter, ++stage)
     {
-      if (stage == bk_stages) stage = 0;
-      full[stage].wait(full[stage].arrive());
+      int blk_iter_m = (blk_iter/BN_iters)*BM;
+      int blk_iter_n = (blk_iter%BN_iters)*BN; 
+
+      uint32_t ra[acc_per_warp_m*4]; //the access is (wm,reg_id) -> 4*wm + reg_id 
+      uint32_t rb[acc_per_warp_n*2]; //the access is (wn, reg_id) -> 2*wn + reg_id 
+      float rc[acc_per_warp_m*acc_per_warp_n*4] = {0.0f}; //the access is (wm,wn,reg_id) -> acc_per_warp_n*wm*4 + wn*4 + reg_id 
       
-      #pragma unroll
-      for (int wk = 0; wk < num_mma_k_iters; wk++)
+      for (int bk = 0; bk < num_BK_iters; ++bk, ++stage)
       {
-        #pragma unroll
-        for (int wm = 0; wm < acc_per_warp_m; wm++)
-        {
-          int a_load_shared_row = warp_start_m + (wm*mma_m) + a_lane_row_base;
-          int a_load_shared_col = (wk*mma_k) + a_lane_col_base;
-          uint32_t a_ld_addr = (smem_base_a[stage]) + ((a_load_shared_col + (BK*a_load_shared_row))*sizeof(nv_bfloat16));
-          int a_reg_start = wm*4; 
-          warp_atom::ldmatrix_m8n8_x4_b16(ra[a_reg_start + 0], ra[a_reg_start + 1], ra[a_reg_start + 2], ra[a_reg_start + 3], a_ld_addr);
-
-          
-        }
-
-        #pragma unroll
-        for (int wn = 0; wn < acc_per_warp_n; wn++)
-        {
-          int b_load_shared_row = (wk*mma_k) + b_lane_row_base; 
-          int b_load_shared_col = warp_start_n + (wn*mma_n) + b_lane_col_base;
-          uint32_t  b_ld_addr = (smem_base_b[stage]) + ((b_load_shared_row + (BK*b_load_shared_col))*sizeof(nv_bfloat16)); 
-          int b_reg_start = wn*2; 
-          warp_atom::ldmatrix_m8n8_x2_b16(rb[b_reg_start + 0], rb[b_reg_start + 1],b_ld_addr);
-          
-        }
+        
+        if (stage == bk_stages) stage = 0;
+        full[stage].wait(full[stage].arrive());
         
         #pragma unroll
-        for (int wm = 0; wm < acc_per_warp_m; wm++)
+        for (int wk = 0; wk < num_mma_k_iters; wk++)
         {
+          #pragma unroll
+          for (int wm = 0; wm < acc_per_warp_m; wm++)
+          {
+            int a_load_shared_row = warp_start_m + (wm*mma_m) + a_lane_row_base;
+            int a_load_shared_col = (wk*mma_k) + a_lane_col_base;
+            uint32_t a_ld_addr = (smem_base_a[stage]) + ((a_load_shared_col + (BK*a_load_shared_row))*sizeof(nv_bfloat16));
+            int a_reg_start = wm*4; 
+            warp_atom::ldmatrix_m8n8_x4_b16(ra[a_reg_start + 0], ra[a_reg_start + 1], ra[a_reg_start + 2], ra[a_reg_start + 3], a_ld_addr);
+
+            
+          }
+
           #pragma unroll
           for (int wn = 0; wn < acc_per_warp_n; wn++)
           {
-            int a_reg_start = wm*4; 
+            int b_load_shared_row = (wk*mma_k) + b_lane_row_base; 
+            int b_load_shared_col = warp_start_n + (wn*mma_n) + b_lane_col_base;
+            uint32_t  b_ld_addr = (smem_base_b[stage]) + ((b_load_shared_row + (BK*b_load_shared_col))*sizeof(nv_bfloat16)); 
             int b_reg_start = wn*2; 
-            int c_reg_start = (wm*acc_per_warp_n*4) + (wn*4); 
-            warp_atom::mma_m16n8k16_row_col_f32_bf16(
-              rc[c_reg_start + 0], rc[c_reg_start + 1], rc[c_reg_start + 2], rc[c_reg_start + 3],
-              ra[a_reg_start + 0], ra[a_reg_start + 1], ra[a_reg_start + 2], ra[a_reg_start + 3],
-              rb[b_reg_start + 0], rb[b_reg_start + 1],
-              rc[c_reg_start + 0], rc[c_reg_start + 1], rc[c_reg_start + 2], rc[c_reg_start + 3]
-            );
+            warp_atom::ldmatrix_m8n8_x2_b16(rb[b_reg_start + 0], rb[b_reg_start + 1],b_ld_addr);
+            
           }
+          
+          #pragma unroll
+          for (int wm = 0; wm < acc_per_warp_m; wm++)
+          {
+            #pragma unroll
+            for (int wn = 0; wn < acc_per_warp_n; wn++)
+            {
+              int a_reg_start = wm*4; 
+              int b_reg_start = wn*2; 
+              int c_reg_start = (wm*acc_per_warp_n*4) + (wn*4); 
+              warp_atom::mma_m16n8k16_row_col_f32_bf16(
+                rc[c_reg_start + 0], rc[c_reg_start + 1], rc[c_reg_start + 2], rc[c_reg_start + 3],
+                ra[a_reg_start + 0], ra[a_reg_start + 1], ra[a_reg_start + 2], ra[a_reg_start + 3],
+                rb[b_reg_start + 0], rb[b_reg_start + 1],
+                rc[c_reg_start + 0], rc[c_reg_start + 1], rc[c_reg_start + 2], rc[c_reg_start + 3]
+              );
+            }
+          }
+          
         }
+        barrier::arrival_token _ = empty[stage].arrive();
         
       }
-      barrier::arrival_token _ = empty[stage].arrive();
-      
-    }
 
-    float2* C2 = reinterpret_cast<float2*>(C); 
-    int lane_row = l/4; 
-    int lane_col = l%4; 
-    int ldc2 = N/2; 
+      float2* C2 = reinterpret_cast<float2*>(C); 
+      int lane_row = l/4; 
+      int lane_col = l%4; 
+      int ldc2 = N/2; 
 
-    #pragma unroll
-    for (int wm = 0; wm < acc_per_warp_m; wm++)
-    {
       #pragma unroll
-      for (int wn = 0; wn < acc_per_warp_n; wn++)
+      for (int wm = 0; wm < acc_per_warp_m; wm++)
       {
-        int c2_global_row_v0 = warp_start_m + (wm*mma_m) + lane_row + 0;
-        int c2_global_row_v1 = c2_global_row_v0 + 8; 
-        int c_global_col_elem = 
-          + warp_start_n          // element space
-          + (wn * mma_n)
-          + (lane_col * 2);         // because float2
+        #pragma unroll
+        for (int wn = 0; wn < acc_per_warp_n; wn++)
+        {
+          int c2_global_row_v0 = blk_iter_m + warp_start_m + (wm*mma_m) + lane_row + 0;
+          int c2_global_row_v1 = c2_global_row_v0 + 8; 
+          int c_global_col_elem = blk_iter_n + warp_start_n + (wn * mma_n) + (lane_col * 2);         // because float2
 
-        int c2_global_col = c_global_col_elem >> 1;
-        //dont worry I shall annotate both this kernels indexing and one_warp_one_mma.cu 
-        // and I shall very carefully extract the index maps and tiling isomorphisms. 
-        int c_reg_start = ((wn*4) + (wm*acc_per_warp_n*4));
-        float2 v0 = {rc[c_reg_start + 0], rc[c_reg_start + 1]}; 
-        float2 v1 = {rc[c_reg_start + 2], rc[c_reg_start + 3]}; 
-        C2[(c2_global_row_v0)*ldc2 + c2_global_col] = v0; 
-        C2[(c2_global_row_v1)*ldc2 + c2_global_col] = v1; 
+          int c2_global_col = c_global_col_elem >> 1;
+
+          int c_reg_start = ((wn*4) + (wm*acc_per_warp_n*4));
+          float2 v0 = {rc[c_reg_start + 0], rc[c_reg_start + 1]}; 
+          float2 v1 = {rc[c_reg_start + 2], rc[c_reg_start + 3]}; 
+          C2[(c2_global_row_v0)*ldc2 + c2_global_col] = v0; 
+          C2[(c2_global_row_v1)*ldc2 + c2_global_col] = v1; 
+        }
       }
     }
   } 
@@ -242,7 +252,7 @@ int main()
   cudaDeviceSynchronize(); 
   C.to_host(); 
   
-
+  /*
   dim3 block(16, 16);
   dim3 grid(
       (N + block.x - 1) / block.x,
@@ -402,6 +412,8 @@ __global__ void naive_gemm_ref(
     }
 
     C[row * N + col] = acc;
+
+  */
 }
 
 
