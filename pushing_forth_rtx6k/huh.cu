@@ -49,6 +49,8 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
   float* C)
 
 {
+
+
   nv_bfloat16* As[bk_stages]; 
   nv_bfloat16* Bs[bk_stages]; 
   uint32_t smem_base_a[bk_stages];
@@ -61,24 +63,29 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
      
   __shared__ barrier full[bk_stages], empty[bk_stages];
 
+
+
+
   int t = threadIdx.x; 
   int w = t/32; 
   int l = t%32; 
   int warp_start_m = (w / warps_per_block_n)*WM; 
   int warp_start_n = (w % warps_per_block_n)*WN; 
+  
 
+  if (threadIdx.x == 0) {
+  for (int i = 0; i < bk_stages; ++i) {
+      init(&full[i], (n_consumer_warps*32) + 1);
+      init(&empty[i],(n_consumer_warps*32) + 1);
+  }
+  ptx::fence_proxy_async(ptx::space_shared);
+  }
+
+  __syncthreads();
   
   for (int blk_iter = 0; blk_iter < total_block_iters; blk_iter++)
   {
-    if (threadIdx.x == 0) {
-    for (int i = 0; i < bk_stages; ++i) {
-        init(&full[i], (n_consumer_warps*32) + 1);
-        init(&empty[i],(n_consumer_warps*32) + 1);
-    }
-    ptx::fence_proxy_async(ptx::space_shared);
-    }
 
-    __syncthreads();
 
     int blk_iter_m = (blk_iter/BN_iters)*BM; 
     int blk_iter_n = (blk_iter%BN_iters)*BN; 
@@ -218,7 +225,7 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
         }
       }
     } 
-    __syncthreads();  
+    
   }
 
   
@@ -255,7 +262,7 @@ int main()
   cudaDeviceSynchronize(); 
   C.to_host(); 
   
-
+  /*
   dim3 block(16, 16);
   dim3 grid(
       (N + block.x - 1) / block.x,
@@ -387,6 +394,7 @@ printf("\n ================ C_computed ============= \n");
        shared_allocate_bytes / 1024.0f);
 
   print_kernel_info();
+  */
 
 }
 

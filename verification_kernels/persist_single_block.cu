@@ -48,14 +48,14 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
 {
   nv_bfloat16* As[bk_stages]; 
   nv_bfloat16* Bs[bk_stages]; 
-  float* CS[c_stages];
+
   uint32_t smem_base_a[bk_stages];
   uint32_t smem_base_b[bk_stages];
-  uint32_t smem_base_c[c_stages];
+
 
   extern __shared__ uint8_t smem_raw[];
-  allocate_smem_tiles_abc(smem_raw, As_bytes, Bs_bytes, Cs_bytes, 
-    bk_stages c_stages, As, Bs,  Cs, smem_base_a, smem_base_b, smem_base_c);
+  allocate_smem_tiles(smem_raw, As_bytes, Bs_bytes, 
+    bk_stages, As, Bs,  smem_base_a, smem_base_b);
      
   __shared__ barrier full[bk_stages], empty[bk_stages];
 
