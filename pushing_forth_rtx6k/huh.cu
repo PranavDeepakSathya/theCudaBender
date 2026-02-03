@@ -4,40 +4,34 @@ constexpr int mma_n = 8;
 constexpr int mma_k = 16; 
 constexpr int acc_per_warp_m = 2; 
 constexpr int acc_per_warp_n = 2; 
-constexpr int num_mma_k_iters = 1;
+constexpr int num_mma_k_iters = 2;
 constexpr int WM = mma_m*acc_per_warp_m; 
 constexpr int WN = mma_n*acc_per_warp_n;
 constexpr int BK = mma_k*num_mma_k_iters;
 constexpr int warps_per_block_m = 2; 
 constexpr int warps_per_block_n = 2; 
 constexpr int BM = warps_per_block_m*WM; 
-constexpr int BN = warps_per_block_n*WN; 
-constexpr int BM_iters = 2;
+constexpr int BN = warps_per_block_n*WN;
+constexpr int BM_iters = 2; 
 constexpr int BN_iters = 2; 
-constexpr int block_total_iters = BM_iters*BN_iters; 
-
+constexpr int total_block_iters = BM_iters*BN_iters; 
 constexpr int M = BM_iters*BM; 
 constexpr int N = BN_iters*BN; 
 constexpr int K = 4096; 
 
 
- 
 constexpr int n_consumer_warps = warps_per_block_m*warps_per_block_n;
-constexpr int block_size = ((warps_per_block_m*warps_per_block_n) + (2))*32; 
+constexpr int block_size = ((warps_per_block_m*warps_per_block_n) + 1)*32; 
 constexpr int bk_stages = 2;
 constexpr int grid_size = 1;
 
 constexpr int prod_warp_id = (n_consumer_warps);
 constexpr int p_thread_id = n_consumer_warps*32;
-constexpr int num_BK_iters = K / BK; 
-constexpr int epilogue_warp_id = n_consumer_warps + 1;
-constexpr int ep_thread_id = (n_consumer_warps + 1)*32;
+constexpr int num_BK_iters = K / BK;
 
 constexpr uint32_t As_bytes = BM*BK*sizeof(nv_bfloat16);
 constexpr uint32_t Bs_bytes = BK*BN*sizeof(nv_bfloat16); 
-constexpr uint32_t Cs_bytes = BM*BN*sizeof(float); 
-constexpr int c_stages = 1;
-constexpr uint32_t shared_allocate_bytes = (c_stages*Cs_bytes) + (bk_stages*(As_bytes + Bs_bytes)) + (bk_stages*3*128); 
+constexpr uint32_t shared_allocate_bytes = (bk_stages*(As_bytes + Bs_bytes)) + (bk_stages*2*128); 
 
 using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace ptx = cuda::ptx;
@@ -60,8 +54,11 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
   uint32_t smem_base_a[bk_stages];
   uint32_t smem_base_b[bk_stages];
 
+
   extern __shared__ uint8_t smem_raw[];
-  allocate_smem_tiles(smem_raw, As_bytes, Bs_bytes, bk_stages, As, Bs, smem_base_a, smem_base_b); 
+  allocate_smem_tiles(smem_raw, As_bytes, Bs_bytes,
+    bk_stages, As, Bs,  smem_base_a, smem_base_b);
+     
   __shared__ barrier full[bk_stages], empty[bk_stages];
 
   int t = threadIdx.x; 
@@ -70,20 +67,22 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
   int warp_start_m = (w / warps_per_block_n)*WM; 
   int warp_start_n = (w % warps_per_block_n)*WN; 
 
-  if (threadIdx.x == 0) {
-  for (int i = 0; i < bk_stages; ++i) {
-      init(&full[i], (n_consumer_warps*32) + 1);
-      init(&empty[i],(n_consumer_warps*32) + 1);
-  }
-  ptx::fence_proxy_async(ptx::space_shared);
-}
-
-  __syncthreads();
-  for (int blk_iter = 0; blk_iter < block_total_iters; blk_iter++)
+  
+  for (int blk_iter = 0; blk_iter < total_block_iters; blk_iter++)
   {
-    int blk_iter_m_start = (blk_iter / BN_iters)*BM;
-    int blk_iter_n_start = (blk_iter % BN_iters)*BN;
-    //producer 
+    if (threadIdx.x == 0) {
+    for (int i = 0; i < bk_stages; ++i) {
+        init(&full[i], (n_consumer_warps*32) + 1);
+        init(&empty[i],(n_consumer_warps*32) + 1);
+    }
+    ptx::fence_proxy_async(ptx::space_shared);
+    }
+
+    __syncthreads();
+
+    int blk_iter_m = (blk_iter/BN_iters)*BM; 
+    int blk_iter_n = (blk_iter%BN_iters)*BN; 
+
     if (w == prod_warp_id)
     {
       if (t == p_thread_id)
@@ -95,8 +94,8 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
           if (stage ==bk_stages) stage = 0;
           empty[stage].wait(empty[stage].arrive());
 
-          int32_t coordsA[2] = {bk*BK, blk_iter_m_start};
-          int32_t coordsB[2] = {bk*BK, blk_iter_n_start};
+          int32_t coordsA[2] = {bk*BK, blk_iter_m};
+          int32_t coordsB[2] = {bk*BK, blk_iter_n};
 
             ptx::cp_async_bulk_tensor(
                 ptx::space_shared, ptx::space_global,
@@ -188,7 +187,7 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
         
       }
       //storage: 
-
+      __syncthreads();
       float2* C2 = reinterpret_cast<float2*>(C); 
       int lane_row = l/4; 
       int lane_col = l%4; 
@@ -200,10 +199,10 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
         #pragma unroll
         for (int wn = 0; wn < acc_per_warp_n; wn++)
         {
-          int c2_global_row_v0 = blk_iter_m_start + warp_start_m + (wm*mma_m) + lane_row + 0;
+          int c2_global_row_v0 = blk_iter_m + warp_start_m + (wm*mma_m) + lane_row + 0;
           int c2_global_row_v1 = c2_global_row_v0 + 8; 
           int c_global_col_elem =
-            blk_iter_n_start 
+            blk_iter_n 
             + warp_start_n          // element space
             + (wn * mma_n)
             + (lane_col * 2);         // because float2
@@ -218,9 +217,12 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
           C2[(c2_global_row_v1)*ldc2 + c2_global_col] = v1; 
         }
       }
-    }
-    __syncthreads();
+    } 
+    __syncthreads();  
   }
+
+  
+
 }
 
 int main()
