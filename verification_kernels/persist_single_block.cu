@@ -2,14 +2,14 @@
 constexpr int mma_m = 16; 
 constexpr int mma_n = 8;
 constexpr int mma_k = 16; 
-constexpr int acc_per_warp_m = 2; 
+constexpr int acc_per_warp_m = 4; 
 constexpr int acc_per_warp_n = 4; 
 constexpr int num_mma_k_iters = 2;
 constexpr int WM = mma_m*acc_per_warp_m; 
 constexpr int WN = mma_n*acc_per_warp_n;
 constexpr int BK = mma_k*num_mma_k_iters;
-constexpr int warps_per_block_m = 6; 
-constexpr int warps_per_block_n = 5; 
+constexpr int warps_per_block_m = 4; 
+constexpr int warps_per_block_n = 4; 
 constexpr int BM = warps_per_block_m*WM; 
 constexpr int BN = warps_per_block_n*WN; 
 constexpr int M = BM; 
