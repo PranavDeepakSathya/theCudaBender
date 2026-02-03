@@ -16,19 +16,23 @@ constexpr int M = BM;
 constexpr int N = BN; 
 constexpr int K = 4096; 
 
-constexpr int n_producer_warps = 1; 
+ 
 constexpr int n_consumer_warps = warps_per_block_m*warps_per_block_n;
-constexpr int block_size = ((warps_per_block_m*warps_per_block_n) + (n_producer_warps))*32; 
+constexpr int block_size = ((warps_per_block_m*warps_per_block_n) + (2))*32; 
 constexpr int bk_stages = 2;
 constexpr int grid_size = 1;
 
-constexpr int prod_warp_start = (n_consumer_warps);
+constexpr int prod_warp_id = (n_consumer_warps);
 constexpr int p_thread_id = n_consumer_warps*32;
-constexpr int num_BK_iters = K / BK;
+constexpr int num_BK_iters = K / BK; 
+constexpr int epilogue_warp_id = n_consumer_warps + 1;
+constexpr int ep_thread_id = (n_consumer_warps + 1)*32;
 
 constexpr uint32_t As_bytes = BM*BK*sizeof(nv_bfloat16);
 constexpr uint32_t Bs_bytes = BK*BN*sizeof(nv_bfloat16); 
-constexpr uint32_t shared_allocate_bytes = (bk_stages*(As_bytes + Bs_bytes)) + (bk_stages*2*128); 
+constexpr uint32_t Cs_bytes = BM*BN*sizeof(float); 
+constexpr int c_stages = 2;
+constexpr uint32_t shared_allocate_bytes = (c_stages*Cs_bytes) + (bk_stages*(As_bytes + Bs_bytes)) + (bk_stages*3*128); 
 
 using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace ptx = cuda::ptx;
@@ -48,15 +52,11 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
 {
   nv_bfloat16* As[bk_stages]; 
   nv_bfloat16* Bs[bk_stages]; 
-  float* CS[c_stages];
   uint32_t smem_base_a[bk_stages];
   uint32_t smem_base_b[bk_stages];
-  uint32_t smem_base_c[c_stages];
 
   extern __shared__ uint8_t smem_raw[];
-  allocate_smem_tiles_abc(smem_raw, As_bytes, Bs_bytes, Cs_bytes, 
-    bk_stages c_stages, As, Bs,  Cs, smem_base_a, smem_base_b, smem_base_c);
-     
+  allocate_smem_tiles(smem_raw, As_bytes, Bs_bytes, bk_stages, As, Bs, smem_base_a, smem_base_b); 
   __shared__ barrier full[bk_stages], empty[bk_stages];
 
   int t = threadIdx.x; 
@@ -76,7 +76,7 @@ __global__ void matmul(__grid_constant__ const CUtensorMap gA,
   __syncthreads();
 
   //producer 
-  if (w >= prod_warp_start)
+  if (w == prod_warp_id)
   {
     if (t == p_thread_id)
     {

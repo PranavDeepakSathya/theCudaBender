@@ -98,3 +98,55 @@ void allocate_smem_tiles(
         base = align128(base);
     }
 }
+
+__device__ __forceinline__
+void allocate_smem_tiles_abc(
+    void* smem_raw,
+    uint32_t As_bytes,
+    uint32_t Bs_bytes,
+    uint32_t Cs_bytes,
+    int k_stages,
+    int c_stages,
+    nv_bfloat16** As,      // As[k_stages]
+    nv_bfloat16** Bs,      // Bs[k_stages]
+    float**        Cs,     // Cs[c_stages]
+    uint32_t* smem_base_a, // byte addresses
+    uint32_t* smem_base_b,
+    uint32_t* smem_base_c
+) {
+    uintptr_t base = reinterpret_cast<uintptr_t>(smem_raw);
+    base = align128(base);
+
+    // ---------------------------
+    // Allocate A stages
+    // ---------------------------
+    #pragma unroll
+    for (int s = 0; s < k_stages; ++s) {
+        As[s] = reinterpret_cast<nv_bfloat16*>(base);
+        smem_base_a[s] = static_cast<uint32_t>(base);
+        base += As_bytes;
+        base = align128(base);
+    }
+
+    // ---------------------------
+    // Allocate B stages
+    // ---------------------------
+    #pragma unroll
+    for (int s = 0; s < k_stages; ++s) {
+        Bs[s] = reinterpret_cast<nv_bfloat16*>(base);
+        smem_base_b[s] = static_cast<uint32_t>(base);
+        base += Bs_bytes;
+        base = align128(base);
+    }
+
+    // ---------------------------
+    // Allocate C stages
+    // ---------------------------
+    #pragma unroll
+    for (int s = 0; s < c_stages; ++s) {
+        Cs[s] = reinterpret_cast<float*>(base);
+        smem_base_c[s] = static_cast<uint32_t>(base);
+        base += Cs_bytes;
+        base = align128(base);
+    }
+}
