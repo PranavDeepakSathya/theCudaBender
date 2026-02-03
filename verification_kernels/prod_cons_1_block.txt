@@ -1,0 +1,53 @@
+Max abs error : 6.103516e-04
+
+Total elements with abs error > 1.0e+00 : 0
+ 
+ ================= C_actual ============ 
+
+ ================ C_computed ============= 
+
+=========================================
+Warmup iters   : 20
+Benchmark iters: 200
+Average kernel time: 0.211968 ms
+=========================================
+
+Problem size: M=160 N=192 K=4096
+Total FLOPs per launch: 251658240
+Throughput: 1.187245 TFLOP/s
+Shared memory per block: 91136 bytes (89.00 KB)
+
+================ cudaFuncGetAttributes ================
+attr.numRegs                     = 57
+attr.sharedSizeBytes             = 64
+attr.maxDynamicSharedSizeBytes   = 91136
+attr.localSizeBytes              = 0
+attr.maxThreadsPerBlock          = 1024
+attr.ptxVersion                  = 120
+attr.binaryVersion               = 120
+
+================ cudaDeviceProp =======================
+prop.regsPerMultiprocessor       = 65536
+prop.sharedMemPerMultiprocessor  = 102400
+prop.maxThreadsPerMultiProcessor = 1536
+prop.warpSize                    = 32
+prop.multiProcessorCount         = 170
+prop.sharedMemPerBlock           = 49152
+prop.sharedMemPerBlockOptin      = 101376
+prop.maxRegistersPerBlock        = 65536
+
+================ derived quantities ===================
+threads_per_block                = 992
+warps_per_block                  = 31
+regs_per_thread                  = 57
+regs_per_block                   = 56544
+smem_per_block                   = 91200
+max_blocks_regs                  = 1
+max_blocks_threads               = 1
+max_blocks_smem                  = 1
+max_blocks_per_sm                = 1
+active_warps_per_sm              = 31
+max_warps_per_sm                 = 48
+theoretical_occupancy            = 0.6458
+======================================================
+
