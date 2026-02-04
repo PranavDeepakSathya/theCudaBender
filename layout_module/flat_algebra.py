@@ -16,6 +16,12 @@ def get_col_major_stride(shape: Tuple[int]):
     col_major.append(col_major[i-1]*shape[i-1])
   return tuple(col_major)
 
+def get_row_major_stride(shape: Tuple[int]): 
+  row_major = [1]*len(shape)
+  for i in reversed(range(len(shape)-1)): 
+    row_major[i] = row_major[i+1]*shape[i+1] 
+  return tuple(row_major)
+  
 def is_flat_compatible(shape: Tuple[int], co_ordinates: Tuple[int]): 
   assert len(shape) == len(co_ordinates)
   for i in range(len(shape)): 
@@ -37,6 +43,26 @@ def colex_inv(shape: Tuple[int], idx:int):
   res = []
   for i in range(len(shape)): 
     res.append((idx//cs_stride[i])%shape[i])
+    
+  return tuple(res)
+
+
+def lex(shape: Tuple[int], co_ordinates: Tuple[int]): 
+  is_flat_compatible(shape, co_ordinates)
+  rs_stride = get_row_major_stride(shape)
+  res = 0
+  for i in range(len(shape)): 
+    res += rs_stride[i]*co_ordinates[i]
+    
+  return res 
+
+def lex_inv(shape: Tuple[int], idx: int): 
+  size = reduce(mul,shape,1)
+  assert 0 <= idx < size 
+  rs_stride = get_row_major_stride(shape) 
+  res = []
+  for i in range(len(shape)): 
+    res.append((idx//rs_stride[i])%shape[i])
     
   return tuple(res)
     
