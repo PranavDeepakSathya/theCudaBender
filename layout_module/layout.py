@@ -130,7 +130,7 @@ class Layout:
     return True
   
   def construct_complement(self)->"Layout": 
-    assert self.is_complementable(0) == (True,True) 
+    assert (self.is_complementable(0) == (True,True)) 
     s,d = self.shape.int_tuple, self.stride.int_tuple
     sp,dp = fa.squeeze(s,d)
     t,e = fa.sort(sp,dp)
