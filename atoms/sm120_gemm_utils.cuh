@@ -1,5 +1,6 @@
 #include "utils.cuh"
 #include "sm120_bf16f32acc_config.cuh"
+#include "ldmat_mma.cuh"
 
 template <class Cfg>
 struct GemmProblem {
@@ -176,6 +177,29 @@ struct CStore {
         C2[c2_row * ldc2 + c2_col] = v0;
         C2[(c2_row + 8) * ldc2 + c2_col] = v1;
       }
+    }
+  }
+};
+
+
+template<class Cfg>
+struct LdMatrixA {
+
+  __device__ static void run(
+      uint32_t regA[Cfg::warp_m_tiles * 4],
+      uint32_t smem_base_a,
+      int wk_iter,
+      int w,
+      int l,
+  ) 
+  {
+    
+    #pragma unroll
+    for (int wm_iter = 0; wm_iter < Cfg::warp_m_tiles; wm_iter++) {
+
+      uint32_t smem_addr = 0;
+
+     
     }
   }
 };
