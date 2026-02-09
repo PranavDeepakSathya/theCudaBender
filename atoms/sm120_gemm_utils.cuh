@@ -83,7 +83,7 @@ struct TmaLoadA {
 
   __device__ __forceinline__ static void run(
       CUtensorMap const& tmaA,
-      void* smem_dst,
+      nv_bfloat16* smem_dst,
       barrier& bar,
       int b,
       int k_iter
@@ -109,7 +109,7 @@ struct TmaLoadB {
 
   __device__ __forceinline__ static void run(
       CUtensorMap const& tmaB,
-      void* smem_dst,
+      nv_bfloat16* smem_dst,
       barrier& bar,
       int b,
       int k_iter
@@ -279,3 +279,52 @@ struct MmaLoop {
     }
   }
 };
+
+template<class Cfg>
+__device__ __forceinline__
+void init_tiles_and_barriers(
+    uint8_t* smem_raw,
+
+    nv_bfloat16* (&As)[Cfg::k_stages],
+    nv_bfloat16* (&Bs)[Cfg::k_stages],
+
+    uint32_t (&smem_base_a)[Cfg::k_stages],
+    uint32_t (&smem_base_b)[Cfg::k_stages],
+
+    barrier (&empty)[Cfg::k_stages],
+    barrier (&full)[Cfg::k_stages]
+) {
+  // ----------------------------
+  // smem carve
+  // ----------------------------
+  uintptr_t base = reinterpret_cast<uintptr_t>(smem_raw);
+
+  #pragma unroll
+  for (int s = 0; s < Cfg::k_stages; s++) {
+    As[s] = reinterpret_cast<nv_bfloat16*>(base);
+    smem_base_a[s] =
+        (uint32_t)__cvta_generic_to_shared(As[s]);
+    base += Cfg::As_bytes;
+  }
+
+  #pragma unroll
+  for (int s = 0; s < Cfg::k_stages; s++) {
+    Bs[s] = reinterpret_cast<nv_bfloat16*>(base);
+    smem_base_b[s] =
+        (uint32_t)__cvta_generic_to_shared(Bs[s]);
+    base += Cfg::Bs_bytes;
+  }
+
+  // ----------------------------
+  // barrier init (full block)
+  // ----------------------------
+  if (threadIdx.x == 0) {
+    #pragma unroll
+    for (int s = 0; s < Cfg::k_stages; s++) {
+      init(&empty[s],Cfg::block_threads);
+      init(&full[s],Cfg::block_threads);
+    }
+  }
+  ptx::fence_proxy_async(ptx::space_shared);
+  __syncthreads();
+}
