@@ -1,3 +1,5 @@
+#pragma once
+
 struct GemmInputs {
   static constexpr int warp_m_tiles = 4;
   static constexpr int warp_n_tiles = 4;
@@ -51,7 +53,7 @@ struct GemmConfig {
   // k tiling
   // ===============================
 
-  static constexpr int BK = mma_k * num_mma_k_iters;
+  static constexpr int BK = mma_k * bk_mma_slices;
 
   // ===============================
   // grid

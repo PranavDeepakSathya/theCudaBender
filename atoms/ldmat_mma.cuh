@@ -48,7 +48,7 @@ void mma_m16n8k16_row_col_f32_bf16(
     const uint32_t a0, const uint32_t a1,
     const uint32_t a2, const uint32_t a3,
     const uint32_t b0, const uint32_t b1
-) {
+)   {
     asm volatile(
         "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
         "{%0, %1, %2, %3}, "
@@ -59,4 +59,6 @@ void mma_m16n8k16_row_col_f32_bf16(
         : "r"(a0), "r"(a1), "r"(a2), "r"(a3),
           "r"(b0), "r"(b1)
     );
+    }
+
 }

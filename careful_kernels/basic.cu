@@ -1,0 +1,6 @@
+#include "../atoms/all.cuh"
+
+int main()
+{
+  return 0; 
+}

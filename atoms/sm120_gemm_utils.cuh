@@ -1,3 +1,5 @@
+#pragma once
+
 #include "utils.cuh"
 #include "sm120_bf16f32acc_config.cuh"
 #include "ldmat_mma.cuh"
@@ -79,10 +81,10 @@ GemmProblem<Cfg> make_gemm_problem() {
 template<class Cfg>
 struct TmaLoadA {
 
-  __device__ static void run(
+  __device__ __forceinline__ static void run(
       CUtensorMap const& tmaA,
       void* smem_dst,
-      barrier* bar,
+      barrier& bar,
       int b,
       int k_iter
   ) {
@@ -105,10 +107,10 @@ struct TmaLoadA {
 template<class Cfg>
 struct TmaLoadB {
 
-  __device__ static void run(
+  __device__ __forceinline__ static void run(
       CUtensorMap const& tmaB,
       void* smem_dst,
-      barrier* bar,
+      barrier& bar,
       int b,
       int k_iter
   ) {
@@ -131,7 +133,7 @@ struct TmaLoadB {
 template<class Cfg>
 struct CStore {
 
-  __device__ static void run(
+  __device__ __forceinline__ static void run(
       float* gC,      // global C base
       int b,          // linear CTA index
       int w,          // consumer warp id
@@ -185,7 +187,7 @@ struct CStore {
 template<class Cfg>
 struct LdMatrixA {
 
-  __device__ static void run(
+  __device__ __forceinline__ static void run(
       uint32_t regA[Cfg::warp_m_tiles * 4],
       uint32_t smem_base_a,
       int wk_iter,
@@ -212,7 +214,7 @@ struct LdMatrixA {
 template<class Cfg>
 struct LdMatrixB {
 
-  __device__ static void run(
+  __device__ __forceinline__ static void run(
       uint32_t regB[Cfg::warp_n_tiles * 2],
       uint32_t smem_base_b,
       int wk_iter,
@@ -239,7 +241,7 @@ struct LdMatrixB {
 template<class Cfg>
 struct MmaLoop {
 
-  __device__ static void run(
+  __device__ __forceinline__ static void run(
       float regC[Cfg::warp_m_tiles * Cfg::warp_n_tiles * 4],
       uint32_t regA[Cfg::warp_m_tiles * 4],
       uint32_t regB[Cfg::warp_n_tiles * 2]
