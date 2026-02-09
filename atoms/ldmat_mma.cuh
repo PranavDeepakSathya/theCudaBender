@@ -47,21 +47,16 @@ void mma_m16n8k16_row_col_f32_bf16(
     float& c0, float& c1, float& c2, float& c3,
     const uint32_t a0, const uint32_t a1,
     const uint32_t a2, const uint32_t a3,
-    const uint32_t b0, const uint32_t b1,
-    const float d0, const float d1,
-    const float d2, const float d3
+    const uint32_t b0, const uint32_t b1
 ) {
     asm volatile(
         "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
         "{%0, %1, %2, %3}, "
         "{%4, %5, %6, %7}, "
         "{%8, %9}, "
-        "{%10, %11, %12, %13};"
-        : "=f"(c0), "=f"(c1), "=f"(c2), "=f"(c3)
+        "{%0, %1, %2, %3};"
+        : "+f"(c0), "+f"(c1), "+f"(c2), "+f"(c3)
         : "r"(a0), "r"(a1), "r"(a2), "r"(a3),
-          "r"(b0), "r"(b1),
-          "f"(d0), "f"(d1), "f"(d2), "f"(d3)
+          "r"(b0), "r"(b1)
     );
-}
-
 }

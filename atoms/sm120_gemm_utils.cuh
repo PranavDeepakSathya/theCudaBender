@@ -190,16 +190,94 @@ struct LdMatrixA {
       uint32_t smem_base_a,
       int wk_iter,
       int w,
-      int l,
+      int l
   ) 
   {
     
     #pragma unroll
     for (int wm_iter = 0; wm_iter < Cfg::warp_m_tiles; wm_iter++) {
 
-      uint32_t smem_addr = 0;
-
+      
+      int m = (w / Cfg::block_n_warps) * Cfg::WM + (wm_iter)*Cfg::mma_m + (l % 16);
+      int k = (wk_iter)*Cfg::mma_k + ((l / 16) * 8);
+      uint32_t smem_addr = smem_base_a + ((m*Cfg::BK + k)*sizeof(nv_bfloat16));
+      int a_reg_start = wm_iter*4;
+      warp_atom::ldmatrix_m8n8_x4_b16(regA[a_reg_start + 0], regA[a_reg_start + 1], regA[a_reg_start + 2], regA[a_reg_start + 3], smem_addr);
      
+    }
+  }
+};
+
+
+template<class Cfg>
+struct LdMatrixB {
+
+  __device__ static void run(
+      uint32_t regB[Cfg::warp_n_tiles * 2],
+      uint32_t smem_base_b,
+      int wk_iter,
+      int w,
+      int l
+  ) 
+  {
+    
+    #pragma unroll
+    for (int wn_iter = 0; wn_iter < Cfg::warp_n_tiles; wn_iter++) {
+
+      
+      int n = (w % Cfg::block_n_warps) * Cfg::WN + (wn_iter) * Cfg::mma_n + (l % 8);
+      int k = (wk_iter)*Cfg::mma_k + (8*(l/8));
+      uint32_t smem_addr = smem_base_b + ((n*Cfg::BK + k)*sizeof(nv_bfloat16));
+      int b_reg_start = wn_iter*2; 
+      warp_atom::ldmatrix_m8n8_x2_b16(regB[b_reg_start + 0], regB[b_reg_start + 1],smem_addr);
+     
+    }
+  }
+};  
+
+
+template<class Cfg>
+struct MmaLoop {
+
+  __device__ static void run(
+      float regC[Cfg::warp_m_tiles * Cfg::warp_n_tiles * 4],
+      uint32_t regA[Cfg::warp_m_tiles * 4],
+      uint32_t regB[Cfg::warp_n_tiles * 2]
+  ) {
+
+    #pragma unroll
+    for (int wm_iter = 0; wm_iter < Cfg::warp_m_tiles; wm_iter++) {
+
+      int a_reg_start = wm_iter * 4;
+
+      #pragma unroll
+      for (int wn_iter = 0; wn_iter < Cfg::warp_n_tiles; wn_iter++) {
+
+        int b_reg_start = wn_iter * 2;
+
+        int c_reg_start =
+            (wm_iter * Cfg::warp_n_tiles + wn_iter) * 4;
+
+        warp_atom::mma_m16n8k16_row_col_f32_bf16(
+            regC[c_reg_start + 0],
+            regC[c_reg_start + 1],
+            regC[c_reg_start + 2],
+            regC[c_reg_start + 3],
+
+            regA[a_reg_start + 0],
+            regA[a_reg_start + 1],
+            regA[a_reg_start + 2],
+            regA[a_reg_start + 3],
+
+            regB[b_reg_start + 0],
+            regB[b_reg_start + 1],
+
+            regC[c_reg_start + 0],
+            regC[c_reg_start + 1],
+            regC[c_reg_start + 2],
+            regC[c_reg_start + 3]
+        );
+      }
     }
   }
 };
