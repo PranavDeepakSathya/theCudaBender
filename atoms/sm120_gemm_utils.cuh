@@ -270,12 +270,8 @@ struct MmaLoop {
             regA[a_reg_start + 3],
 
             regB[b_reg_start + 0],
-            regB[b_reg_start + 1],
+            regB[b_reg_start + 1]
 
-            regC[c_reg_start + 0],
-            regC[c_reg_start + 1],
-            regC[c_reg_start + 2],
-            regC[c_reg_start + 3]
         );
       }
     }
