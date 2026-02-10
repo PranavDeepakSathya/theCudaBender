@@ -5,7 +5,7 @@ constexpr  int BM = 32;
 constexpr  int BN = 32; //32*32 = 1024 elements = 2048 bytes, make sure we dont fuck aligment up 
 //by making this smaller than 1024 bytes. 
 
-constexpr int num_stages = 4;
+constexpr int num_stages = 2;
 constexpr uint32_t shared_bytes = (num_stages*BM*BN*sizeof(nv_bfloat16)) + 4*1024; 
 constexpr uint32_t tile_size = BM*BN*sizeof(nv_bfloat16);
 constexpr int BM_iters = M/BM; 
@@ -24,7 +24,7 @@ __global__ void copy_kern(__grid_constant__ const CUtensorMap a_map, __grid_cons
 
   for (int s = 0; s < num_stages; s++)
   {
-    As[s] = alloc<nv_bfloat16, 128>(ptr, BM*BN);
+    As[s] = alloc<nv_bfloat16, 1024>(ptr, BM*BN);
   }
   uint64_t* empty = alloc<uint64_t, 8>(ptr, num_stages);
   uint64_t* full = alloc<uint64_t, 8>(ptr, num_stages);
@@ -41,13 +41,14 @@ __global__ void copy_kern(__grid_constant__ const CUtensorMap a_map, __grid_cons
 
     }
   }
+  __syncthreads();
 
   if (w == 0) //producer code 
   {
     for (int idx = 0; idx < total_iters; idx ++)
     {
       int stage = idx % num_stages; 
-      int32_t coords[2] = {(idx / BN_iters)*BM, (idx % BN_iters)*BN};
+      int32_t coords[2] = {(idx % BN_iters)*BN, (idx / BN_iters)*BM};
       if (l == 0)
       {
         while(!cuda::ptx::mbarrier_try_wait(&empty[stage], empty_tokens[stage])); 
@@ -78,7 +79,7 @@ __global__ void copy_kern(__grid_constant__ const CUtensorMap a_map, __grid_cons
     for (int idx = 0; idx < total_iters; idx ++)
     {
       int stage = idx % num_stages; 
-      int32_t coords[2] = {(idx / BN_iters)*BM, (idx % BN_iters)*BN};
+      int32_t coords[2] = {(idx % BN_iters)*BN, (idx / BN_iters)*BM};
       while(!cuda::ptx::mbarrier_try_wait(&full[stage], full_tokens[stage]));
 
       if(l == 0)
@@ -120,9 +121,9 @@ int main()
   A_out.to_host(); 
   
   printf("\n ====================A================\n");
-  //A.pretty_print(); 
+  A.pretty_print(); 
   printf("\n ====================A_out ================\n");
-  //A_out.pretty_print(); 
+  A_out.pretty_print(); 
 
     // ---- CPU-side equality check ----
   bool ok = true;
@@ -150,5 +151,54 @@ int main()
     printf("   A_out bits = 0x%04x\n", Aoh[first_bad]);
   }
 
- 
+  // ---- Throughput benchmark ----
+  constexpr int iters = 2000;
+
+  // warmup
+  for (int i = 0; i < 50; i++) {
+    launcher.launch(copy_kern, a_map, a_out_map);
+  }
+  cudaDeviceSynchronize();
+
+  // timing with CUDA events
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  cudaEventRecord(start);
+
+  for (int i = 0; i < iters; i++) {
+    launcher.launch(copy_kern, a_map, a_out_map);
+  }
+
+  cudaEventRecord(stop);
+  cudaEventSynchronize(stop);
+
+  float ms = 0.0f;
+  cudaEventElapsedTime(&ms, start, stop);
+
+  // bytes moved per kernel
+  double bytes_per_copy = double(M) * double(N) * sizeof(nv_bfloat16);
+
+  // load + store traffic
+  double bytes_per_kernel = 2.0 * bytes_per_copy;
+
+  double total_bytes = bytes_per_kernel * iters;
+
+  // GB/s
+  double seconds = ms / 1e3;
+  double gb = total_bytes / 1e9;
+  double gbps = gb / seconds;
+
+  printf("\n==== Benchmark ====\n");
+  printf("Matrix size: %d x %d bf16\n", M, N);
+  printf("Bytes per kernel (load+store): %.3f MB\n", bytes_per_kernel / 1e6);
+  printf("Iterations: %d\n", iters);
+  printf("Time: %.3f ms total\n", ms);
+  printf("Throughput: %.2f GB/s\n", gbps);
+
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
+
+
 }
