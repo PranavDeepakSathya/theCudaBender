@@ -85,7 +85,7 @@ struct GemmConfig {
       BK * BN * sizeof(nv_bfloat16);
 
   static constexpr uint32_t smem_bytes =
-      k_stages * (As_bytes + Bs_bytes);
+      (k_stages * (As_bytes + Bs_bytes)) + 4*1024;
 
   // ===============================
   // invariants
