@@ -36,14 +36,48 @@ __global__ void matmul (__grid_constant__ const CUtensorMap gA,
     for (int k_iter = 0; k_iter < Cfg::num_k_iters; k_iter++)
     {
       int stage = k_iter % 2; 
-      empty[stage].wait(empty[stage].arrive())
+      empty[stage].wait(empty[stage].arrive());
       if (l == 0)
       {
-        TmaLoadA<Cfg>::run(gA, As[stage], full[stage])
+        TmaLoadA<Cfg>::run(gA, As[stage], full[stage],b,k_iter);
+        TmaLoadB<Cfg>::run(gB, Bs[stage], full[stage],b,k_iter);
         barrier::arrival_token _ = cuda::device::barrier_arrive_tx(
-        full[stage], 1, As_bytes + Bs_bytes);
+        full[stage], 1, Cfg::As_bytes + Cfg::Bs_bytes);
+      }
+      else
+      {
+        barrier::arrival_token _ = full[stage].arrive();
       }
     }
+  }
+
+  else
+  {
+    #pragma unroll
+    for (int i = 0; i < Cfg::k_stages; ++i) 
+    {
+          // i initially, all buffers are considered empty; ready for write
+          barrier::arrival_token _ = empty[i].arrive();
+    }
+    uint32_t ra[Cfg::warp_m_tiles*4]; //the access is (wm,reg_id) -> 4*wm + reg_id 
+    uint32_t rb[Cfg::warp_n_tiles*2]; //the access is (wn, reg_id) -> 2*wn + reg_id 
+    float rc[Cfg::warp_m_tiles*Cfg::warp_n_tiles*4] = {0.0f}; //the access is (wm,wn,reg_id) -> acc_per_warp_n*wm*4 + wn*4 + reg_id 
+
+    for (int k_iter = 0; k_iter < Cfg::num_k_iters; k_iter++)
+    {
+      int stage = k_iter % 2; 
+      full[stage].wait(full[stage].arrive()); 
+      for (int wk = 0; wk < Cfg::bk_mma_slices; wk++)
+      {
+        LdMatrixA<Cfg>::run(ra, smem_base_a[stage],wk,w,l);
+        LdMatrixB<Cfg>::run(rb, smem_base_b[stage],wk,w,l);
+        MmaLoop<Cfg>::run(rc,ra,rb);
+      }
+
+      barrier::arrival_token _ = empty[stage].arrive();
+    }
+
+    CStore<Cfg>::run(gC, b,w,l,rc);
   }
 
 }
@@ -75,5 +109,17 @@ int main()
   NaiveLauncher launcher(Cfg::GM*Cfg::GN, 1, Cfg::block_threads,Cfg::smem_bytes);
   launcher.launch(matmul<Cfg>, a_map, b_map, C.d_ptr);
   cudaDeviceSynchronize();
+  C.to_host();
+
+
+  for (int i = 0; i < 10; i++)
+  {
+    for (int j = 0; j < 10; j++)
+    {
+      printf("%f, ", C.h_ptr[i*Cfg::problem_n + j]);
+    }
+    printf("\n");
+  }
+
 
 }
