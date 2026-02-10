@@ -1,0 +1,12 @@
+
+ ====================A================
+
+ ====================A_out ================
+✅ Copy correctness: PASSED (A == A_out)
+
+==== Benchmark ====
+Matrix size: 4096 x 4096 bf16
+Bytes per kernel (load+store): 67.109 MB
+Iterations: 2000
+Time: 1211.127 ms total
+Throughput: 110.82 GB/s
