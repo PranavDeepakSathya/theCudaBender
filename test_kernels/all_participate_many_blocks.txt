@@ -1,0 +1,12 @@
+
+ ====================A================
+
+ ====================A_out ================
+✅ Copy correctness: PASSED (A == A_out)
+
+==== Benchmark ====
+Matrix size: 8192 x 8192 bf16
+Bytes per kernel (load+store): 268.435 MB
+Iterations: 2000
+Time: 357.275 ms total
+Throughput: 1502.68 GB/s
