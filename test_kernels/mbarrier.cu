@@ -1,72 +1,50 @@
 #include "../atoms/all.cuh"
-namespace ptx = cuda::ptx;
-using barrier = cuda::barrier<cuda::thread_scope_block>;
+constexpr const int M = 512; 
+constexpr const int N = 512; 
+constexpr const int BM = 32; 
+constexpr const int BN = 32; //32*32 = 1024 elements = 2048 bytes, make sure we dont fuck aligment up 
+//by making this smaller than 1024 bytes. 
+
+constexpr const int num_stages = 4;
+constexpr const uint32_t shared_bytes = (num_stages*BM*BN*sizeof(nv_bfloat16)) + 4*1024; 
+constexpr 
 
 
-
-using Cfg = GemmConfig<GemmInputs>;
-
-template <class Cfg> 
-__global__ void matmul (__grid_constant__ const CUtensorMap gA, 
-  __grid_constant__ const CUtensorMap gB, float*gC)
+__global__ void copy_kern(__grid_constant__ const CUtensorMap a_map, __grid_constant__ const CUtensorMap a_out_map)
 {
   extern __shared__ __align__(1024) uint8_t smem_raw[];
-
-  nv_bfloat16* As[Cfg::k_stages]; 
-  nv_bfloat16* Bs[Cfg::k_stages]; 
-
-  uint32_t smem_base_a[Cfg::k_stages];
-  uint32_t smem_base_b[Cfg::k_stages];
-
-  __shared__ barrier empty[Cfg::k_stages], full[Cfg::k_stages]; 
-
-  int b = blockIdx.x; 
-  int t = threadIdx.x; 
-  int w = t/32; 
-  int l = t % 32; 
-
-  gC[t] = 1.0;
-
+  nv_bfloat16* As[num_stages]; 
+  
+  nv_bfloat16* smem = reinterpret_cast<nv_bfloat16*>(smem);
+  for (int s = 0; s < num_stages; s++)
+  {
+    As[s] = smem; 
+    smem += BM*BN;
+  }
 }
-
 
 int main()
 {
-  return 0;
-  NaiveTensor<nv_bfloat16>A({Cfg::problem_m,Cfg::problem_k}, Layout::ROW_MAJOR); 
-  NaiveTensor<nv_bfloat16>B({Cfg::problem_k,Cfg::problem_n}, Layout::COL_MAJOR); 
-  NaiveTensor<float>C({Cfg::problem_m,Cfg::problem_n}, Layout::ROW_MAJOR); 
-  A.allocate();
-  B.allocate();
-  C.allocate(); 
+  NaiveTensor<nv_bfloat16>A({M,N}, Layout::ROW_MAJOR); 
+  NaiveTensor<nv_bfloat16>A_out({M,N},Layout::ROW_MAJOR); 
   A.init_pattern(MODE_RAND, DIST_FLOAT_NEG1_1); 
-  B.init_pattern(MODE_RAND, DIST_FLOAT_NEG1_1); 
-  C.init_pattern(MODE_ZEROS, DIST_FLOAT_NEG1_1); 
-  A.to_device(); 
-  B.to_device();
-  C.to_device(); 
-  CUtensorMap a_map = 
-                    TmaDescriptor<nv_bfloat16>::create_2d_row_major(A.d_ptr,
-                    {Cfg::problem_m, Cfg::problem_k},{Cfg::BM,Cfg::BK});
+  A_out.init_pattern(MODE_ZEROS, DIST_FLOAT_NEG1_1); 
+  A.to_device();
+  A_out.to_device(); 
 
-  CUtensorMap b_map = 
-                      TmaDescriptor<nv_bfloat16>::create_2d_col_major(B.d_ptr, 
-                        {Cfg::problem_k,Cfg::problem_n}, {Cfg::BK,Cfg::BN});
+  CUtensorMap a_map = TmaDescriptor<nv_bfloat16>::create_2d_row_major(A.d_ptr,{M,N},{BM,BN});
+  CUtensorMap a_out_map = TmaDescriptor<nv_bfloat16>::create_2d_row_major(A_out.d_ptr,{M,N},{BM,BN});
 
-  NaiveLauncher launcher(Cfg::GM*Cfg::GN, 1, Cfg::block_threads,Cfg::smem_bytes);
-  launcher.launch(matmul<Cfg>, a_map, b_map, C.d_ptr);
-  cudaDeviceSynchronize();
-  C.to_host();
-
-
-  for (int i = 0; i < 10; i++)
-  {
-    for (int j = 0; j < 10; j++)
-    {
-      printf("%f, ", C.h_ptr[i*Cfg::problem_n + j]);
-    }
-    printf("\n");
-  }
+  NaiveLauncher launcher(1, 1, 32*2,shared_bytes);
+  launcher.launch(copy_kern, a_map, a_out_map);
+  cudaDeviceSynchronize(); 
+  A_out.to_host(); 
+  
+  printf("\n ====================A================\n");
+  A.pretty_print(); 
+  printf("\n ====================A_out ================\n");
+  A_out.pretty_print(); 
 
 
+ 
 }
