@@ -1,16 +1,16 @@
 #include "../atoms/all.cuh"
-constexpr const int M = 512; 
-constexpr const int N = 512; 
-constexpr const int BM = 32; 
-constexpr const int BN = 32; //32*32 = 1024 elements = 2048 bytes, make sure we dont fuck aligment up 
+constexpr  int M = 512; 
+constexpr  int N = 512; 
+constexpr  int BM = 32; 
+constexpr  int BN = 32; //32*32 = 1024 elements = 2048 bytes, make sure we dont fuck aligment up 
 //by making this smaller than 1024 bytes. 
 
-constexpr const int num_stages = 4;
-constexpr const uint32_t shared_bytes = (num_stages*BM*BN*sizeof(nv_bfloat16)) + 4*1024; 
-constexpr const uint32_t tile_size = BM*BN*sizeof(nv_bfloat16);
-constexpr const int BM_iters = M/BM; 
-constexpr const int BN_iters = N/BN; 
-constexpr const int total_iters = BM_iters*BN_iters; 
+constexpr int num_stages = 4;
+constexpr uint32_t shared_bytes = (num_stages*BM*BN*sizeof(nv_bfloat16)) + 4*1024; 
+constexpr uint32_t tile_size = BM*BN*sizeof(nv_bfloat16);
+constexpr int BM_iters = M/BM; 
+constexpr  int BN_iters = N/BN; 
+constexpr int total_iters = BM_iters*BN_iters; 
 
 
 __global__ void copy_kern(__grid_constant__ const CUtensorMap a_map, __grid_constant__ const CUtensorMap a_out_map)
@@ -26,15 +26,18 @@ __global__ void copy_kern(__grid_constant__ const CUtensorMap a_map, __grid_cons
   {
     As[s] = alloc<nv_bfloat16, 128>(ptr, BM*BN);
   }
-  uint64_t* empty = alloc<uint64_t, 16>(ptr, num_stages);
-  uint64_t* full = alloc<uint64_t, 16>(ptr, num_stages);
+  uint64_t* empty = alloc<uint64_t, 8>(ptr, num_stages);
+  uint64_t* full = alloc<uint64_t, 8>(ptr, num_stages);
+  __shared__ uint64_t empty_tokens[num_stages];
+  __shared__ uint64_t full_tokens[num_stages]; 
+
 
   if (t == 0)
   {
     for (int s = 0; s < num_stages; s++)
     {
-      cuda::ptx::mbarrier_init(empty[s],2);
-      cuda::ptx::mbarrier_init(full[s],2);
+      cuda::ptx::mbarrier_init(&empty[s],32);
+      cuda::ptx::mbarrier_init(&full[s],1);
 
     }
   }
@@ -44,9 +47,57 @@ __global__ void copy_kern(__grid_constant__ const CUtensorMap a_map, __grid_cons
     for (int idx = 0; idx < total_iters; idx ++)
     {
       int stage = idx % num_stages; 
+      int32_t coords[2] = {(idx / BN_iters)*BM, (idx % BN_iters)*BN};
+      if (l == 0)
+      {
+        while(!cuda::ptx::mbarrier_try_wait(&empty[stage], empty_tokens[stage])); 
 
-      uint32_t coords = {(idx / BN_iters)*BM, (idx % BN_iters)*BN}
+        cuda::ptx::cp_async_bulk_tensor(
+          cuda::ptx::space_shared, cuda::ptx::space_global,
+          As[stage], &a_map, coords, &full[stage]);
+        
+        full_tokens[stage] = cuda::ptx::mbarrier_arrive_expect_tx(
+          cuda::ptx::sem_release, 
+          cuda::ptx::scope_cta, 
+          cuda::ptx::space_shared,
+          &full[stage],
+          BM*BN*sizeof(nv_bfloat16)
+        );
+        
+      }
+
+    }
+  }
+  else
+  {
+    for (int s = 0; s < num_stages; s++)
+    {
+      empty_tokens[s] = cuda::ptx::mbarrier_arrive(&empty[s]);
+    }
+
+    for (int idx = 0; idx < total_iters; idx ++)
+    {
+      int stage = idx % num_stages; 
+      int32_t coords[2] = {(idx / BN_iters)*BM, (idx % BN_iters)*BN};
+      while(!cuda::ptx::mbarrier_try_wait(&full[stage], full_tokens[stage]));
+
+      if(l == 0)
+      {
+        cuda::ptx::cp_async_bulk_tensor(
+        cuda::ptx::space_global, cuda::ptx::space_shared,
+        &a_out_map, coords, As[stage]
+      );
+
+      cuda::ptx::cp_async_bulk_commit_group();
+      cuda::ptx::cp_async_bulk_wait_group_read(cuda::ptx::n32_t<0>{});
       
+      empty_tokens[stage] = cuda::ptx::mbarrier_arrive(&empty[stage]);
+      }
+      else
+      {
+        empty_tokens[stage] = cuda::ptx::mbarrier_arrive(&empty[stage]);
+      }
+
     }
   }
 }
@@ -69,10 +120,35 @@ int main()
   A_out.to_host(); 
   
   printf("\n ====================A================\n");
-  A.pretty_print(); 
+  //A.pretty_print(); 
   printf("\n ====================A_out ================\n");
-  A_out.pretty_print(); 
+  //A_out.pretty_print(); 
 
+    // ---- CPU-side equality check ----
+  bool ok = true;
+  int first_bad = -1;
+
+  auto *Ah  = reinterpret_cast<const uint16_t*>(A.h_ptr);
+  auto *Aoh = reinterpret_cast<const uint16_t*>(A_out.h_ptr);
+
+  for (int i = 0; i < M * N; i++) {
+    if (Ah[i] != Aoh[i]) {
+      ok = false;
+      first_bad = i;
+      break;
+    }
+  }
+
+  if (ok) {
+    printf("✅ Copy correctness: PASSED (A == A_out)\n");
+  } else {
+    int r = first_bad / N;
+    int c = first_bad % N;
+    printf("❌ Copy correctness: FAILED at idx=%d (row=%d col=%d)\n",
+          first_bad, r, c);
+    printf("   A     bits = 0x%04x\n", Ah[first_bad]);
+    printf("   A_out bits = 0x%04x\n", Aoh[first_bad]);
+  }
 
  
 }
