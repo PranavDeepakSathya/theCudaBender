@@ -60,9 +60,19 @@ __device__ inline bool is_elected()
     return (uniform_warp_id == 0 && elect_sync(0xFFFFFFFF)); // Elect a leader thread among warp 0.
 }
 
-
-__device__ __forceinline__ uintptr_t align128(uintptr_t ptr)
+template<int Align>
+__device__ __forceinline__ uint8_t* align_ptr(uint8_t* p)
 {
-    return (ptr + 127) & ~uintptr_t(127);
+    uintptr_t x = reinterpret_cast<uintptr_t>(p);
+    x = (x + (Align - 1)) & ~(uintptr_t)(Align - 1);
+    return reinterpret_cast<uint8_t*>(x);
 }
 
+template<typename T, int Align>
+__device__ __forceinline__ T* alloc(uint8_t*& ptr, int count)
+{
+    ptr = align_ptr<Align>(ptr);
+    T* out = (T*)ptr;
+    ptr += count * sizeof(T);
+    return out;
+}
