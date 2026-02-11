@@ -1,0 +1,14 @@
+Launch complete.
+
+==== Verification ====
+Max abs error : 7.781982e-04
+Max rel error : 1.269314e+01
+Bad elements  : 0 (abs > 1.00e-01)
+✅ PASSED
+
+========== Benchmark ==========
+Kernel   : sm120 bf16 matmul
+Shape    : M=4096 N=4096 K=4096
+Avg time : 0.6810 ms
+TFLOP/s  : 201.80
+================================
