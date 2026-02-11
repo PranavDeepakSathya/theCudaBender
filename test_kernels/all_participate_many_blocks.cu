@@ -1,6 +1,7 @@
 #include "../atoms/all.cuh"
-constexpr  int M = 8192; 
-constexpr  int N = 8192;
+
+constexpr  int M = 1024*13; 
+constexpr  int N = 1024*13;
 constexpr  int SM = 1024;
 constexpr  int SN = 1024; 
 constexpr  int BM = 64; 
