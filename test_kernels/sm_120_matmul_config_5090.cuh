@@ -5,9 +5,9 @@
 
 struct Sm120_BF16_Gemm_Config {
 
-  static constexpr int M = 4096;
-  static constexpr int N = 4096;
-  static constexpr int K = 4096;
+  static constexpr int M = 8192;
+  static constexpr int N = 8192;
+  static constexpr int K = 8192;
 
   static constexpr int mma_m = 16;
   static constexpr int mma_n = 8;
