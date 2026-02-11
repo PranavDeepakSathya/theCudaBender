@@ -1,5 +1,5 @@
 #include "../atoms/all.cuh"
-#include "sm_120_matmul_config.cuh"
+#include "sm_120_matmul_config_5090.cuh"
 
 namespace ptx = cuda::ptx; 
 
