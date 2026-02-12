@@ -135,6 +135,8 @@ private:
         if constexpr (std::is_same_v<T, nv_bfloat16>) return CU_TENSOR_MAP_DATA_TYPE_BFLOAT16;
         if constexpr (std::is_same_v<T, int32_t>) return CU_TENSOR_MAP_DATA_TYPE_INT32;
         if constexpr (std::is_same_v<T, uint8_t>) return CU_TENSOR_MAP_DATA_TYPE_UINT8;
+        if constexpr (std::is_same_v<T, __nv_fp8_e4m3>) return CU_TENSOR_MAP_DATA_TYPE_UINT8;
+        if constexpr (std::is_same_v<T, __nv_fp8_e5m2>) return CU_TENSOR_MAP_DATA_TYPE_UINT8;
         return CU_TENSOR_MAP_DATA_TYPE_UINT8;
     }
 };

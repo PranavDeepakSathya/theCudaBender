@@ -5,6 +5,7 @@
 #include <type_traits> // for if constexpr
 #include <cuda_fp16.h>
 #include <cuda_bf16.h>
+#include <cuda_fp8.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cuda_runtime.h>
