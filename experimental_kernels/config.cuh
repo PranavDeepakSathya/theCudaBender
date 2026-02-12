@@ -13,7 +13,7 @@ struct Sm120_BF16_Gemm_Config {
   static constexpr int mma_n = 8;
   static constexpr int mma_k = 16;
 
-  static constexpr int apw_m = 4;
+  static constexpr int apw_m = 2;
   static constexpr int apw_n = 4;
   static constexpr int wk_iters = 2;
 

@@ -1,8 +1,8 @@
 #include "../atoms/all.cuh"
-constexpr  int M = 4096; 
-constexpr  int N = 4096; 
-constexpr  int BM = 64; 
-constexpr  int BN = 128; //32*32 = 1024 elements = 2048 bytes, make sure we dont fuck aligment up 
+constexpr  int M = 512; 
+constexpr  int N = 512; 
+constexpr  int BM = 32; 
+constexpr  int BN = 32; //32*32 = 1024 elements = 2048 bytes, make sure we dont fuck aligment up 
 //by making this smaller than 1024 bytes. 
 
 constexpr int num_stages = 4;
@@ -51,6 +51,7 @@ __global__ void copy_kern(__grid_constant__ const CUtensorMap a_map, __grid_cons
       int32_t coords[2] = {(idx % BN_iters)*BN, (idx / BN_iters)*BM};
       
       empty_tokens[stage] = cuda::ptx::mbarrier_arrive(&empty[stage]);
+      printf("producer: %d, empty_token: %llu, stage: %d \n",t,empty_tokens[stage],stage);
       
       while(!cuda::ptx::mbarrier_try_wait(&empty[stage], empty_tokens[stage])); 
 
@@ -70,11 +71,12 @@ __global__ void copy_kern(__grid_constant__ const CUtensorMap a_map, __grid_cons
           &full[stage],
           BM*BN*sizeof(nv_bfloat16)
         );
-        
+        printf("elected_producer: %d, full_token: %llu, stage: %d \n",t,full_tokens[stage],stage);
       }
       else
       {
          full_tokens[stage] = cuda::ptx::mbarrier_arrive(&full[stage]);
+        printf("producer: %d, full_token: %llu, stage: %d \n",t,full_tokens[stage],stage);
       }
 
     }
@@ -163,53 +165,53 @@ int main()
   }
 
   // ---- Throughput benchmark ----
-  constexpr int iters = 2000;
+  // constexpr int iters = 2000;
 
-  // warmup
-  for (int i = 0; i < 50; i++) {
-    launcher.launch(copy_kern, a_map, a_out_map);
-  }
-  cudaDeviceSynchronize();
+  // // warmup
+  // for (int i = 0; i < 50; i++) {
+  //   launcher.launch(copy_kern, a_map, a_out_map);
+  // }
+  // cudaDeviceSynchronize();
 
-  // timing with CUDA events
-  cudaEvent_t start, stop;
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
+  // // timing with CUDA events
+  // cudaEvent_t start, stop;
+  // cudaEventCreate(&start);
+  // cudaEventCreate(&stop);
 
-  cudaEventRecord(start);
+  // cudaEventRecord(start);
 
-  for (int i = 0; i < iters; i++) {
-    launcher.launch(copy_kern, a_map, a_out_map);
-  }
+  // for (int i = 0; i < iters; i++) {
+  //   launcher.launch(copy_kern, a_map, a_out_map);
+  // }
 
-  cudaEventRecord(stop);
-  cudaEventSynchronize(stop);
+  // cudaEventRecord(stop);
+  // cudaEventSynchronize(stop);
 
-  float ms = 0.0f;
-  cudaEventElapsedTime(&ms, start, stop);
+  // float ms = 0.0f;
+  // cudaEventElapsedTime(&ms, start, stop);
 
-  // bytes moved per kernel
-  double bytes_per_copy = double(M) * double(N) * sizeof(nv_bfloat16);
+  // // bytes moved per kernel
+  // double bytes_per_copy = double(M) * double(N) * sizeof(nv_bfloat16);
 
-  // load + store traffic
-  double bytes_per_kernel = 2.0 * bytes_per_copy;
+  // // load + store traffic
+  // double bytes_per_kernel = 2.0 * bytes_per_copy;
 
-  double total_bytes = bytes_per_kernel * iters;
+  // double total_bytes = bytes_per_kernel * iters;
 
-  // GB/s
-  double seconds = ms / 1e3;
-  double gb = total_bytes / 1e9;
-  double gbps = gb / seconds;
+  // // GB/s
+  // double seconds = ms / 1e3;
+  // double gb = total_bytes / 1e9;
+  // double gbps = gb / seconds;
 
-  printf("\n==== Benchmark ====\n");
-  printf("Matrix size: %d x %d bf16\n", M, N);
-  printf("Bytes per kernel (load+store): %.3f MB\n", bytes_per_kernel / 1e6);
-  printf("Iterations: %d\n", iters);
-  printf("Time: %.3f ms total\n", ms);
-  printf("Throughput: %.2f GB/s\n", gbps);
+  // printf("\n==== Benchmark ====\n");
+  // printf("Matrix size: %d x %d bf16\n", M, N);
+  // printf("Bytes per kernel (load+store): %.3f MB\n", bytes_per_kernel / 1e6);
+  // printf("Iterations: %d\n", iters);
+  // printf("Time: %.3f ms total\n", ms);
+  // printf("Throughput: %.2f GB/s\n", gbps);
 
-  cudaEventDestroy(start);
-  cudaEventDestroy(stop);
+  // cudaEventDestroy(start);
+  // cudaEventDestroy(stop);
 
 
 }

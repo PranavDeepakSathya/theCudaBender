@@ -55,6 +55,9 @@ __global__ void matmul
   uint64_t* full = alloc<uint64_t, 8>(ptr, cfg::bk_stages);
   uint64_t empty_tokens[cfg::bk_stages];
   uint64_t full_tokens[cfg::bk_stages];
+  uint32_t ra[cfg::apw_m*4];
+  uint32_t rb[cfg::apw_n*2];
+  float rc[cfg::apw_m*cfg::apw_n*4] = {0.0}; 
   
   int t = threadIdx.x; 
   int w = t/32; 
@@ -70,6 +73,7 @@ __global__ void matmul
       ptx::mbarrier_init(&full[stage],cfg::block_size);
   
     }
+    asm volatile("fence.mbarrier_init.release.cluster;");  // visible to async proxy
   }
   __syncthreads();
 
@@ -114,9 +118,7 @@ __global__ void matmul
   }
   else
   {
-    uint32_t ra[cfg::apw_m*4];
-    uint32_t rb[cfg::apw_n*2];
-    float rc[cfg::apw_m*cfg::apw_n*4] = {0.0}; 
+
     #pragma unroll
     for (int stage = 0; stage < cfg::bk_stages; stage++)
     {
@@ -129,6 +131,7 @@ __global__ void matmul
       int stage = bk_idx % cfg::bk_stages; 
       full_tokens[stage] = ptx::mbarrier_arrive(&full[stage]);
       while(!ptx::mbarrier_try_wait(&full[stage], full_tokens[stage]));
+      asm volatile("fence.proxy.async.shared::cta;");
 
       #pragma unroll
       for (int wk_idx = 0; wk_idx < cfg::wk_iters; wk_idx++)
@@ -175,6 +178,12 @@ __global__ void matmul
       empty_tokens[stage] = ptx::mbarrier_arrive(&empty[stage]); 
     }
 
+  }
+
+  __syncthreads(); 
+
+  if (w < cfg::producer_warp_id)
+  {
     float2* C2 = reinterpret_cast<float2*>(C); 
     int lane_row = l/4; 
     int lane_col = 2*(l%4); 
@@ -195,7 +204,6 @@ __global__ void matmul
         C2[(C_row+8)*ldc2 + (C_col)] = v1;
       }
     }
-
   }
 
   
