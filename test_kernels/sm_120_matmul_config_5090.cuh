@@ -13,7 +13,7 @@ struct Sm120_BF16_Gemm_Config {
   static constexpr int mma_n = 8;
   static constexpr int mma_k = 16;
 
-  static constexpr int apw_m = 4;
+  static constexpr int apw_m = 2;
   static constexpr int apw_n = 4;
   static constexpr int wk_iters = 2;
 
@@ -34,7 +34,7 @@ struct Sm120_BF16_Gemm_Config {
   static constexpr int BN = WN * wpb_n;
 
   static constexpr int bk_iters  = K / BK;
-  static constexpr int bk_stages = 2;
+  static constexpr int bk_stages = 1;
 
   static constexpr int GM = M / BM;
   static constexpr int GN = N / BN;

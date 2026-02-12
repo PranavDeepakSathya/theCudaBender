@@ -1,4 +1,14 @@
 Launch complete.
-Max abs error : 6.713867e-04
 
-Total elements with abs error > 1.0e+00 : 0
+==== Verification ====
+Max abs error : 2.288818e-03
+Max rel error : 1.308000e+02
+Bad elements  : 0 (abs > 1.00e-01)
+✅ PASSED
+
+========== Benchmark ==========
+Kernel   : sm120 bf16 matmul
+Shape    : M=8192 N=8192 K=8192
+Avg time : 7.0484 ms
+TFLOP/s  : 155.99
+================================

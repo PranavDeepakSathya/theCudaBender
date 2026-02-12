@@ -88,6 +88,7 @@ __global__ void matmul
       int32_t B_coords[2] = {bk_idx*cfg::BK, b_start_n}; 
       empty_tokens[stage] = ptx::mbarrier_arrive(&empty[stage]);
       while(!ptx::mbarrier_try_wait(&empty[stage], empty_tokens[stage])); 
+      asm volatile("fence.proxy.async.shared::cta;");
       if (l == 0)
       {
         ptx::cp_async_bulk_tensor(
