@@ -24,7 +24,7 @@ void benchmark_matmul(
     CUtensorMap b_map,
     float* C_dev,
     int warmup_iters = 20,
-    int bench_iters  = 2000);
+    int bench_iters  = 20);
 
 template <class cfg>
 __global__ void matmul
