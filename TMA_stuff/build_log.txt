@@ -1,0 +1,14 @@
+swizzle_verify.cu(32): warning #20054-D: dynamic initialization is not supported for a function-scope static __shared__ variable within a __device__/__global__ function
+    __attribute__((shared)) barrier bar;
+                                    ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+swizzle_verify.cu(6): warning #177-D: variable "m_iters" was declared but never referenced
+  constexpr int m_iters = M/atom_m;
+                ^
+
+swizzle_verify.cu(7): warning #177-D: variable "n_iters" was declared but never referenced
+  constexpr int n_iters = N/atom_n;
+                ^
+

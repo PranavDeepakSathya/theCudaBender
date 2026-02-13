@@ -39,6 +39,62 @@ void ldmatrix_m8n8_x2_b16(
     );
 }
 
+__device__ __forceinline__
+void ldmatrix_m8n8_x1_b16(
+    uint32_t& r0,
+    const uint32_t smem_addr
+) {
+    asm volatile(
+        "ldmatrix.sync.aligned.m8n8.x1.shared.b16 "
+        "{%0}, [%1];"
+        : "=r"(r0)
+        : "r"(smem_addr)
+    );
+}
+
+
+__device__ __forceinline__
+void stmatrix_m8n8_x1_b16(
+    const uint32_t r0,
+    const uint32_t smem_addr
+) {
+    asm volatile(
+        "stmatrix.sync.aligned.x1.m8n8.shared.b16 [%0], {%1};\n"
+        :
+        : "r"(smem_addr), "r"(r0)
+    );
+}
+
+__device__ __forceinline__
+void stmatrix_m8n8_x2_b16(
+    const uint32_t r0,
+    const uint32_t r1,
+    const uint32_t smem_addr
+) {
+    asm volatile(
+        "stmatrix.sync.aligned.x2.m8n8.shared.b16 [%0], {%1, %2};\n"
+        :
+        : "r"(smem_addr), "r"(r0), "r"(r1)
+    );
+}
+
+__device__ __forceinline__
+void stmatrix_m8n8_x4_b16(
+    const uint32_t r0,
+    const uint32_t r1,
+    const uint32_t r2,
+    const uint32_t r3,
+    const uint32_t smem_addr
+) {
+    asm volatile(
+        "stmatrix.sync.aligned.x4.m8n8.shared.b16 [%0], {%1, %2, %3, %4};\n"
+        :
+        : "r"(smem_addr),
+          "r"(r0), "r"(r1), "r"(r2), "r"(r3)
+    );
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // mma: m16n8k16 row.col bf16 -> f32 accumulate
 ////////////////////////////////////////////////////////////////////////////////
@@ -61,5 +117,5 @@ void mma_m16n8k16_row_col_f32_bf16(
     );
     }
 
-}
+} // namespace warp_atom
 
