@@ -62,3 +62,4 @@ void mma_m16n8k16_row_col_f32_bf16(
     }
 
 }
+

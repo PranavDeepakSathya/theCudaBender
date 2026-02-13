@@ -4,6 +4,6 @@
 #include "tma_factory.cuh"
 #include "naive_tensor.cuh"
 #include "ldmat_mma.cuh"
-
+#include "swizzle.cuh"
 
 

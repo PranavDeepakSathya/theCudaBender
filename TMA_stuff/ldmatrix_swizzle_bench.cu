@@ -5,10 +5,12 @@ constexpr int out_m = 16;
 constexpr int out_n = 16; 
 constexpr int m_iters = M/out_m; 
 constexpr int n_iters = N/out_n; 
-constexpr int bench_iters = 2000000; 
+constexpr int bench_iters = 20000000; 
 constexpr int TILE_M = out_m; // 16
 constexpr int TILE_N = out_n; // 16
-
+constexpr int b_bits = 3;
+constexpr int m_base = 4;
+constexpr int s_shift = 3;
 constexpr int NUM_TILES_M = m_iters; // 8
 constexpr int NUM_TILES_N = n_iters; // 8
 constexpr int NUM_TILES   = NUM_TILES_M * NUM_TILES_N;
@@ -43,10 +45,9 @@ __global__ void test_ldmx4(const __grid_constant__ CUtensorMap a_map,
   int t = threadIdx.x; 
   uint32_t ra[4]; 
 
-  int x = t/16;
-  int y = t%16;
-  int x2 = x^((y>>2)&1);
-  int y2 = y^((y>>3)&1);
+  int lane_row = t%16;
+  int lane_col = 8*(t/16);
+ 
   uint32_t smem_addr =
   static_cast<uint32_t>(__cvta_generic_to_shared(As));
 
@@ -84,10 +85,7 @@ __global__ void test_ldmx4(const __grid_constant__ CUtensorMap a_map,
   #pragma unroll 
   for (int iter = 0; iter < bench_iters; iter++)
   {
-    int offset =
-        ((tile_id0 >>TN_SHIFT) * TILE_M + y) * N +
-        ((tile_id0 & TN_MASK) * TILE_N + (8 * x));
-
+    int offset = ((tile_id0/n_iters)*TILE_M + lane_row)*N + ((tile_id0%n_iters)*TILE_N + lane_col); 
 
 
     warp_atom::ldmatrix_m8n8_x4_b16(
@@ -96,9 +94,10 @@ __global__ void test_ldmx4(const __grid_constant__ CUtensorMap a_map,
 
   
     tile_id0 = next_tile_id(tile_id0, ra);
+    sink0 ^= ra[0];
   }
 
-  sink0 ^= ra[0];
+  
   unsigned long long end0 = clock64();
 
   int tile_id1 = 0;
@@ -109,20 +108,19 @@ __global__ void test_ldmx4(const __grid_constant__ CUtensorMap a_map,
   #pragma unroll 
   for (int iter = 0; iter < bench_iters; iter++)
   {
-    int offset =
-        ((tile_id1 >> TN_SHIFT) * TILE_M + y2) * N +
-        ((tile_id1 & TN_MASK) * TILE_N + (8 * x2));
-
-
+    
+    int offset = ((tile_id1/n_iters)*TILE_M + lane_row)*N + ((tile_id1%n_iters)*TILE_N + lane_col); 
+    uint32_t swizzled_byte_offset = cute_swizzle_byte_offset<b_bits,m_base,s_shift,nv_bfloat16>(offset);
     warp_atom::ldmatrix_m8n8_x4_b16(
         ra[0], ra[1], ra[2], ra[3],
-        smem_addr + (offset*sizeof(nv_bfloat16)));
+        smem_addr + swizzled_byte_offset);
 
     
 
     tile_id1 = next_tile_id(tile_id1, ra);
+    sink1 ^= ra[0];
   }
-  sink1 ^= ra[0];
+  
 
   unsigned long long end1 = clock64();
 

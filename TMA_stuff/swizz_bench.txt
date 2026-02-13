@@ -1,0 +1,4 @@
+No-swizzle cycles:  2641406251
+Swizzled cycles:    1811122796
+Cycles/ldmatrix no-swiz = 132.0703
+Cycles/ldmatrix swiz    = 90.5561
