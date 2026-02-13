@@ -3,7 +3,7 @@ struct SwizzleConfig
 {
     using dtype = nv_bfloat16;
 
-    static constexpr int M = 4;
+    static constexpr int M = 128;
     static constexpr int N = 64;
 
     // Box tile == full matrix for now

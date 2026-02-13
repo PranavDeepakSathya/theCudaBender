@@ -97,7 +97,7 @@ __global__ void matmul (const __grid_constant__ CUtensorMap a_map,
     }
 
     bar.wait(std::move(token));
-
+    asm volatile("fence.proxy.async.shared::cta;");
 
 
     for (int wk_idx = 0; wk_idx < cfg::MMA_K_ITERS_PER_WARP; wk_idx++)

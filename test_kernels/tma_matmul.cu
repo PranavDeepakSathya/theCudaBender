@@ -1,7 +1,9 @@
 #include "../atoms/all.cuh"
 #include "sm_120_matmul_config_5090.cuh"
 
-namespace ptx = cuda::ptx; 
+namespace ptx = cuda::ptx;
+
+void print_cfg();
 
 __global__ void naive_gemm_ref(
     const nv_bfloat16* A,
@@ -396,4 +398,29 @@ void benchmark_matmul(
     printf("Avg time : %.4f ms\n", avg_ms);
     printf("TFLOP/s  : %.2f\n", tflops);
     printf("================================\n");
+    print_cfg();
+}
+
+void print_cfg() {
+  using C = Sm120_BF16_Gemm_Config;
+
+  printf("WM = %d\n", C::WM);
+  printf("WN = %d\n", C::WN);
+  printf("BK = %d\n", C::BK);
+
+  printf("BM = %d\n", C::BM);
+  printf("BN = %d\n", C::BN);
+
+  printf("Compute warps = %d\n", C::num_compute_warps);
+  printf("Total warps   = %d\n", C::num_warps_total);
+  printf("Threads/block = %d\n", C::block_size);
+
+  printf("bk_iters = %d\n", C::bk_iters);
+
+  printf("As_bytes = %u\n", C::As_bytes);
+  printf("Bs_bytes = %u\n", C::Bs_bytes);
+  printf("shared_bytes = %u\n", C::shared_bytes);
+
+  printf("Grid GM=%d GN=%d total blocks=%d\n",
+         C::GM, C::GN, C::grid_size);
 }
