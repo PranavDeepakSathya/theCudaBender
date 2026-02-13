@@ -1,0 +1,5 @@
+
+==== Swizzle Verification ====
+Max abs error : 0.000000e+00
+Bad elements  : 0 / 8192
+✅ PASSED

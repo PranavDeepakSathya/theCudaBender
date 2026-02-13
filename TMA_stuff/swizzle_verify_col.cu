@@ -1,14 +1,14 @@
 #include "../atoms/all.cuh"
-constexpr int M = 128;
-constexpr int N = 16; 
+constexpr int M = 64;
+constexpr int N = 128; 
 constexpr int atom_m = 16;
-constexpr int atom_n = 16; 
+constexpr int atom_n = 8; 
 constexpr int m_iters = M/atom_m; 
 constexpr int n_iters = N/atom_n;
-constexpr int b_bits = 1;
+constexpr int b_bits = 3;
 constexpr int m_base = 4; 
 constexpr int s_shift = 3;
-constexpr CUtensorMapSwizzle swizzle_mode = CU_TENSOR_MAP_SWIZZLE_32B;
+constexpr CUtensorMapSwizzle swizzle_mode = CU_TENSOR_MAP_SWIZZLE_128B;
 namespace ptx = cuda::ptx; 
 using barrier = cuda::barrier<cuda::thread_scope_block>;
 
@@ -25,9 +25,9 @@ __global__ void verify_swizzle(const __grid_constant__ CUtensorMap a_map,
   uint32_t as_out_base = static_cast<uint32_t>(__cvta_generic_to_shared(As_out));
 
     int l = threadIdx.x; 
-    int l_row = l%16;
-    int l_col = 8*(l/16);
-    uint32_t ra[4];
+    int l_col = l%8;
+    int l_row = 8*(l/8);
+    uint32_t ra[2];
 
   __shared__ barrier bar; 
   barrier::arrival_token token;
@@ -61,12 +61,12 @@ __global__ void verify_swizzle(const __grid_constant__ CUtensorMap a_map,
   {
     for (int n_idx = 0; n_idx < N; n_idx += atom_n)
     {
-      int offset = (m_idx + l_row)*N + (n_idx + l_col); 
+      int offset = (m_idx + l_row) + (n_idx + l_col)*M; 
       uint32_t swizzle_offset_bytes = cute_swizzle_byte_offset<b_bits,m_base,s_shift,nv_bfloat16>(offset);
-      warp_atom::ldmatrix_m8n8_x4_b16(ra[0],ra[1],ra[2],ra[3], as_base + swizzle_offset_bytes);
+      warp_atom::ldmatrix_m8n8_x2_b16(ra[0],ra[1], as_base + swizzle_offset_bytes);
 
       __syncthreads();
-      warp_atom::stmatrix_m8n8_x4_b16(ra[0],ra[1],ra[2],ra[3], as_out_base + swizzle_offset_bytes);
+      warp_atom::stmatrix_m8n8_x2_b16(ra[0],ra[1], as_out_base + swizzle_offset_bytes);
 
     }
   }
@@ -87,8 +87,8 @@ __global__ void verify_swizzle(const __grid_constant__ CUtensorMap a_map,
 
 int main()
 {
-  NaiveTensor<nv_bfloat16>A({M,N}, Layout::ROW_MAJOR); 
-  NaiveTensor<nv_bfloat16>A_out({M,N}, Layout::ROW_MAJOR); 
+  NaiveTensor<nv_bfloat16>A({M,N}, Layout::COL_MAJOR); 
+  NaiveTensor<nv_bfloat16>A_out({M,N}, Layout::COL_MAJOR); 
   A.allocate();
   A_out.allocate();
 
@@ -98,8 +98,8 @@ int main()
   A.to_device();
   A_out.to_device(); 
 
-  CUtensorMap a_map = TmaDescriptor<nv_bfloat16>::create_2d_row_major(A.d_ptr, {M,N},{M,N}, swizzle_mode);
-  CUtensorMap a_out_map = TmaDescriptor<nv_bfloat16>::create_2d_row_major(A_out.d_ptr, {M,N},{M,N}, swizzle_mode);
+  CUtensorMap a_map = TmaDescriptor<nv_bfloat16>::create_2d_col_major(A.d_ptr, {M,N},{M,N}, swizzle_mode);
+  CUtensorMap a_out_map = TmaDescriptor<nv_bfloat16>::create_2d_col_major(A_out.d_ptr, {M,N},{M,N}, swizzle_mode);
   NaiveLauncher launcher(1,1,32,2*M*N*sizeof(nv_bfloat16) + 4*1024);
   launcher.launch(verify_swizzle, a_map, a_out_map);
   cudaDeviceSynchronize();
