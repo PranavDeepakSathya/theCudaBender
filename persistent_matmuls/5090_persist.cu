@@ -129,6 +129,13 @@ __global__ void matmul
   }
   else
   {
+    #pragma unroll
+    for (int stage = 0; stage < cfg::bk_stages; stage++)
+    {
+      empty_tokens[stage] = ptx::mbarrier_arrive(&empty[stage]); 
+
+    }
+
     for (int iter = 0; iter < cfg::persist_num_iters; iter++)
     {
       int tile_id = tile_sched::get_linear_tile_id<cfg::num_tiles,cfg::num_sms>(iter,b);
@@ -140,12 +147,7 @@ __global__ void matmul
       uint32_t ra[cfg::apw_m*4];
       uint32_t rb[cfg::apw_n*2];
       float rc[cfg::apw_m*cfg::apw_n*4] = {0.0}; 
-      #pragma unroll
-      for (int stage = 0; stage < cfg::bk_stages; stage++)
-      {
-        empty_tokens[stage] = ptx::mbarrier_arrive(&empty[stage]); 
 
-      }
       #pragma unroll
       for (int bk_idx = 0; bk_idx < cfg::bk_iters; bk_idx++)
       {
@@ -290,13 +292,14 @@ int main()
 
   verify_result(C, C_ref, Cfg::M, Cfg::N,1e-1,20);
 
-  // benchmark_matmul<Cfg>(
-  //   "sm120 bf16 matmul",
-  //   launcher,
-  //   a_map,
-  //   b_map,
-  //   C.d_ptr
-  // );
+  benchmark_matmul<Cfg>(
+    "sm120 bf16 matmul",
+    launcher,
+    a_map,
+    b_map,
+    C.d_ptr
+  );
+  print_cfg();
 
 }
 
