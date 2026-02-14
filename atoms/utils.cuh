@@ -77,3 +77,8 @@ __device__ __forceinline__ T* alloc(uint8_t*& ptr, int count)
     ptr += count * sizeof(T);
     return out;
 }
+
+template<int Threads>
+__device__ inline void sync_bar() {
+    asm volatile("bar.sync 1, %0;" :: "n"(Threads));
+}

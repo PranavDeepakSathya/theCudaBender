@@ -57,7 +57,7 @@ __global__ void copy(const __grid_constant__ CUtensorMap a_map, const __grid_con
   }
   bar.wait(std::move(token)); 
   asm volatile("fence.proxy.async.shared::cta;");
-
+  
   if(l == 0)
   {
     cuda::ptx::cp_async_bulk_tensor(
@@ -65,7 +65,7 @@ __global__ void copy(const __grid_constant__ CUtensorMap a_map, const __grid_con
         &a_out_map, A_coords, As
       );
     cuda::ptx::cp_async_bulk_commit_group();
-    cuda::ptx::cp_async_bulk_wait_group_read(cuda::ptx::n32_t<0>{});
+    
   }
   
 }
