@@ -1,27 +1,47 @@
 Launch complete.
+BAD (0,0) ref=64.182159 gpu=41.981525 abs=2.220063e+01 rel=3.459004e-01
+BAD (0,1) ref=-17.336828 gpu=-6.771590 abs=1.056524e+01 rel=6.094102e-01
+BAD (0,2) ref=-19.957031 gpu=-4.267924 abs=1.568911e+01 rel=7.861444e-01
+BAD (0,3) ref=-37.041668 gpu=-17.657057 abs=1.938461e+01 rel=5.233191e-01
+BAD (0,4) ref=0.138668 gpu=-28.344404 abs=2.848307e+01 rel=2.054044e+02
+BAD (0,5) ref=-4.299481 gpu=17.295782 abs=2.159526e+01 rel=5.022760e+00
+BAD (0,6) ref=6.360142 gpu=9.688746 abs=3.328604e+00 rel=5.233538e-01
+BAD (0,7) ref=-19.368748 gpu=-40.801083 abs=2.143233e+01 rel=1.106542e+00
+BAD (0,8) ref=1.769441 gpu=-4.559397 abs=6.328838e+00 rel=3.576744e+00
+BAD (0,9) ref=32.577614 gpu=14.602283 abs=1.797533e+01 rel=5.517694e-01
+BAD (0,10) ref=-31.423698 gpu=-7.619351 abs=2.380435e+01 rel=7.575285e-01
+BAD (0,11) ref=23.966045 gpu=2.092591 abs=2.187346e+01 rel=9.126852e-01
+BAD (0,12) ref=-26.962347 gpu=-23.711401 abs=3.250946e+00 rel=1.205736e-01
+BAD (0,13) ref=-27.079498 gpu=-26.929956 abs=1.495419e-01 rel=5.522327e-03
+BAD (0,14) ref=6.704988 gpu=9.246018 abs=2.541031e+00 rel=3.789762e-01
+BAD (0,15) ref=4.782177 gpu=6.211507 abs=1.429330e+00 rel=2.988870e-01
+BAD (0,16) ref=52.637428 gpu=1.644925 abs=5.099250e+01 rel=9.687499e-01
+BAD (0,17) ref=10.132030 gpu=29.888227 abs=1.975620e+01 rel=1.949876e+00
+BAD (0,18) ref=-44.282974 gpu=8.676437 abs=5.295941e+01 rel=1.195932e+00
+BAD (0,19) ref=-49.728745 gpu=-13.911869 abs=3.581688e+01 rel=7.202449e-01
 
 ==== Verification ====
-Max abs error : 2.120972e-03
-Max rel error : 2.536667e+02
-Bad elements  : 0 (abs > 1.00e-01)
-✅ PASSED
+Max abs error : 1.254349e+02
+Max rel error : 1.468878e+07
+Bad elements  : 66857313 (abs > 1.00e-01)
+❌ FAILED
 
 ========== Benchmark ==========
 Kernel   : sm120 bf16 matmul
 Shape    : M=8192 N=8192 K=8192
-Avg time : 4.7675 ms
-TFLOP/s  : 230.62
+Avg time : 2.8535 ms
+TFLOP/s  : 385.32
 ================================
-WM = 32
+WM = 64
 WN = 32
-BK = 64
+BK = 32
 BM = 128
 BN = 128
-Compute warps = 16
-Total warps   = 17
-Threads/block = 544
-bk_iters = 128
-As_bytes = 16384
-Bs_bytes = 16384
-shared_bytes = 73728
+Compute warps = 8
+Total warps   = 9
+Threads/block = 288
+bk_iters = 256
+As_bytes = 8192
+Bs_bytes = 8192
+shared_bytes = 40960
 Grid GM=64 GN=64 total blocks=170
