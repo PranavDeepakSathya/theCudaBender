@@ -23,4 +23,23 @@ int get_linear_tile_id(int iter, int sm_id)
     return (tile < NUM_TILES) ? tile : -1;
 }
 
-} // namespace tile_sched
+__device__ __forceinline__
+uint32_t compact1by1(uint32_t x)
+{
+    x &= 0x55555555u;                 // keep even bits
+    x = (x | (x >> 1)) & 0x33333333u;
+    x = (x | (x >> 2)) & 0x0F0F0F0Fu;
+    x = (x | (x >> 4)) & 0x00FF00FFu;
+    x = (x | (x >> 8)) & 0x0000FFFFu;
+    return x;
+}
+
+__device__ __forceinline__
+void morton_decode_2d(uint32_t tile_id, uint32_t &m, uint32_t &n)
+{
+    m = compact1by1(tile_id);
+    n = compact1by1(tile_id >> 1);
+}
+
+
+} 

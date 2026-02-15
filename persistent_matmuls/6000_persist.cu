@@ -1,5 +1,5 @@
 #include "../atoms/all.cuh"
-#include "5090_persist_cfg.cuh"
+#include "6000_persist_cfg.cuh"
 
 namespace ptx = cuda::ptx;
 
