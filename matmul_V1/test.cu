@@ -3,6 +3,59 @@
 #include "kernel.cuh"
 
 namespace ptx = cuda::ptx;
+template <class Cfg>
+
+void benchmark_kernel(
+    CUtensorMap a_map,
+    CUtensorMap b_map,
+    float* C_dev,
+    int warmup = 20,
+    int iters  = 2000)
+{
+    NaiveLauncher launcher(
+        Cfg::grid_size,
+        1,
+        Cfg::block_size,
+        Cfg::shared_bytes
+    );
+
+    // Warmup
+    for (int i = 0; i < warmup; i++)
+        launcher.launch(matmul_kernel<Cfg>, a_map, b_map, C_dev);
+
+    cudaDeviceSynchronize();
+
+    // Timing
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
+
+    for (int i = 0; i < iters; i++)
+        launcher.launch(matmul_kernel<Cfg>, a_map, b_map, C_dev);
+
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float total_ms = 0.0f;
+    cudaEventElapsedTime(&total_ms, start, stop);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
+    double avg_ms = total_ms / iters;
+    double avg_s  = avg_ms * 1e-3;
+
+    double flops  = 2.0 * double(Cfg::M) * double(Cfg::N) * double(Cfg::K);
+    double tflops = flops / (avg_s * 1e12);
+
+    printf("\n========== Benchmark ==========\n");
+    printf("Avg time : %.4f ms\n", avg_ms);
+    printf("TFLOP/s  : %.2f\n", tflops);
+    printf("================================\n");
+}
+
 
 __global__ void naive_gemm_ref(
     const nv_bfloat16* A,
@@ -100,16 +153,16 @@ int main()
         TmaDescriptor<nv_bfloat16>::create_2d_row_major(
             A.d_ptr,
             {Cfg::M, Cfg::K},
-            {Cfg::BM, Cfg::BK},
-            0
+            {Cfg::BM, Cfg::BK}
+            
         );
 
     CUtensorMap b_map =
         TmaDescriptor<nv_bfloat16>::create_2d_col_major(
             B.d_ptr,
             {Cfg::K, Cfg::N},
-            {Cfg::BK, Cfg::BN},
-            0
+            {Cfg::BK, Cfg::BN}
+            
         );
 
     NaiveLauncher launcher(
@@ -142,6 +195,10 @@ int main()
     C_ref.to_host();
 
     verify_result(C, C_ref, Cfg::M, Cfg::N);
+    
+
+    benchmark_kernel<Cfg>(a_map, b_map, C.d_ptr);
 
     return 0;
+
 }

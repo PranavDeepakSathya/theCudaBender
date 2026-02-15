@@ -22,6 +22,11 @@
 #define WARPS_PER_BLOCK_N 4
 #endif
 
+#ifndef BK_STAGES
+#define BK_STAGES 2
+#endif
+
+
 static constexpr bool is_pow2(int x)
 {
 return x > 1 && ((x & (x - 1)) == 0);
@@ -62,12 +67,14 @@ struct GemmConfig
 
   static constexpr int BM = WM * warps_per_block_m;
   static constexpr int BN = WN * warps_per_block_n;
+  static constexpr int bk_stages = BK_STAGES;
 
   static_assert(K % BK == 0);
 
   static constexpr int block_k_iters = K / BK;
 
-  static constexpr int num_warps  = warps_per_block_m * warps_per_block_n;
+  static constexpr int num_warps  = (warps_per_block_m * warps_per_block_n) + 1;
+  static constexpr int producer_warp_id = warps_per_block_m*warps_per_block_n;
   static constexpr int block_size = num_warps * 32;
 
   static constexpr uint32_t As_bytes =
@@ -79,11 +86,12 @@ struct GemmConfig
   static constexpr uint32_t smem_overhead = 4 * 1024;
 
   static constexpr uint32_t shared_bytes =
-      As_bytes + Bs_bytes + smem_overhead;
+      ((As_bytes + Bs_bytes)*bk_stages) + smem_overhead;
 
   static_assert(shared_bytes <= 100 * 1024,
                 "Config rejected: shared memory exceeds 100KB");
-  
+
+
   static_assert(block_size < 1024);
   static_assert(M % BM == 0);
   static_assert(N % BN == 0);
