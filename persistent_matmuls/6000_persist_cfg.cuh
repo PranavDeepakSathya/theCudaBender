@@ -47,7 +47,7 @@ struct Sm120_BF16_Gemm_Config_swizzle_persist {
   static constexpr int num_tiles = GM * GN;
 
   // One resident block per SM (you will launch exactly this many)
-  static constexpr int num_sms = 170;
+  static constexpr int num_sms = 188;
 
   // Persistent iterations per SM:
   // ceil(num_tiles / num_sms)

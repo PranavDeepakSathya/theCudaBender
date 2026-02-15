@@ -13,15 +13,15 @@ struct Sm120_BF16_Gemm_Config {
   static constexpr int mma_n = 8;
   static constexpr int mma_k = 16;
 
-  static constexpr int apw_m = 4;
+  static constexpr int apw_m = 2;
   static constexpr int apw_n = 4;
-  static constexpr int wk_iters = 2;
+  static constexpr int wk_iters = 4;
 
   static constexpr int WM = mma_m * apw_m;
   static constexpr int WN = mma_n * apw_n;
   static constexpr int BK = mma_k * wk_iters;
 
-  static constexpr int wpb_m = 2;
+  static constexpr int wpb_m = 4;
   static constexpr int wpb_n = 4;
 
   static constexpr int num_compute_warps = wpb_m * wpb_n;
