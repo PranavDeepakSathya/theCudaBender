@@ -100,16 +100,16 @@ int main()
         TmaDescriptor<nv_bfloat16>::create_2d_row_major(
             A.d_ptr,
             {Cfg::M, Cfg::K},
-            {Cfg::BM, Cfg::BK},
-            0
+            {Cfg::BM, Cfg::BK}
+            
         );
 
     CUtensorMap b_map =
         TmaDescriptor<nv_bfloat16>::create_2d_col_major(
             B.d_ptr,
             {Cfg::K, Cfg::N},
-            {Cfg::BK, Cfg::BN},
-            0
+            {Cfg::BK, Cfg::BN}
+            
         );
 
     NaiveLauncher launcher(
@@ -142,6 +142,7 @@ int main()
     C_ref.to_host();
 
     verify_result(C, C_ref, Cfg::M, Cfg::N);
+    
 
     return 0;
 }

@@ -6,4 +6,4 @@
 #include "ldmat_mma.cuh"
 #include "swizzle.cuh"
 #include "tile_scheduler.cuh"
-
+#include "sm_120_warp_instructions.cuh"
