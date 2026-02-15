@@ -1,0 +1,27 @@
+Launch complete.
+
+==== Verification ====
+Max abs error : 2.120972e-03
+Max rel error : 2.536667e+02
+Bad elements  : 0 (abs > 1.00e-01)
+✅ PASSED
+
+========== Benchmark ==========
+Kernel   : sm120 bf16 matmul
+Shape    : M=8192 N=8192 K=8192
+Avg time : 4.7675 ms
+TFLOP/s  : 230.62
+================================
+WM = 32
+WN = 32
+BK = 64
+BM = 128
+BN = 128
+Compute warps = 16
+Total warps   = 17
+Threads/block = 544
+bk_iters = 128
+As_bytes = 16384
+Bs_bytes = 16384
+shared_bytes = 73728
+Grid GM=64 GN=64 total blocks=170
