@@ -33,7 +33,7 @@ macro_flags = [f"-D{k}={v}" for k, v in cfg.items()]
 
 
 ext = load(
-    name="folder_matmul",
+    name="matmul_V0",
     sources=["export.cu"],
     extra_cuda_cflags=[
         "-arch=sm_120",

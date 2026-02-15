@@ -51,7 +51,7 @@ __global__ void matmul_kernel(
     int32_t A_coords[2] = {bk_idx*Cfg::BK, block_start_m};
     int32_t B_coords[2] = {bk_idx*Cfg::BK, block_start_n}; 
     __syncthreads(); //wait for prev ldmatrix and mma stage to finish
-    asm volatile("fence.proxy.async.shared::cta;");
+   
 
     if (l == 0)
     {
