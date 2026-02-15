@@ -5,6 +5,7 @@ source .venv/bin/activate
 pip install --upgrade pip setuptools wheel
 pip install nvcc4jupyter numpy jupyter_client ipykernel ipywidgets
 pip install triton
+pip install torch
 
 
 git config --global user.email sathya.pranav.deepak@gmail.com
