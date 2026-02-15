@@ -77,9 +77,10 @@ __global__ void matmul_kernel(
     }
     
     while(!ptx::mbarrier_try_wait(bar,bar_token));
-
+    #pragma unroll
     for (int wm_idx = 0; wm_idx < Cfg::acc_per_warp_m; wm_idx++)
     {
+      #pragma unroll
       for (int wk_idx = 0; wk_idx < Cfg::warp_k_iters; wk_idx++)
       {
         int a_ld_shared_offset = (warp_start_m + (wm_idx*Cfg::mma_m) + (l%16))*Cfg::BK + (wk_idx*Cfg::mma_k + (8*(l/16)));
@@ -89,8 +90,10 @@ __global__ void matmul_kernel(
       }
     }
 
+    #pragma unroll
     for (int wn_idx = 0; wn_idx < Cfg::acc_per_warp_n; wn_idx++)
     {
+      #pragma unroll
       for (int wk_idx = 0; wk_idx < Cfg::warp_k_iters/2; wk_idx++) //load 2 warp_k iters at once
       {
         int b_ld_shared_offset = (warp_start_n + (wn_idx*Cfg::mma_n) + (l%8))*Cfg::BK + ((2*wk_idx*Cfg::mma_k) + (8*(l/8)));
@@ -99,11 +102,13 @@ __global__ void matmul_kernel(
 
       }
     }
-
+    #pragma unroll
     for (int wk_idx = 0; wk_idx < Cfg::warp_k_iters; wk_idx++)
     {
+      #pragma unroll
       for (int wm_idx = 0; wm_idx < Cfg::acc_per_warp_m; wm_idx++)
       {
+        #pragma unroll
         for (int wn_idx = 0; wn_idx < Cfg::acc_per_warp_n; wn_idx++)
         {
           wa::mma_m16n8k16_row_col_f32_bf16(rc[wm_idx][wn_idx], ra[wm_idx][wk_idx], rb[wn_idx][wk_idx]);
@@ -118,9 +123,10 @@ __global__ void matmul_kernel(
   int lane_col = 2*(l%4); 
   int ldc2 = Cfg::N/2;
 
+  #pragma unroll
   for (int wm_idx = 0; wm_idx < Cfg::acc_per_warp_m; wm_idx++)
   {
-
+    #pragma unroll
     for (int wn_idx = 0; wn_idx < Cfg::acc_per_warp_n; wn_idx++)
     {
       int C_row = block_start_m + warp_start_m + (wm_idx*Cfg::mma_m) + lane_row;
