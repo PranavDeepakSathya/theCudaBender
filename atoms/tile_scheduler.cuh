@@ -13,14 +13,14 @@
 
 namespace tile_sched {
 
-template <int NUM_TILES, int NUM_SMS>
+template <int num_tiles, int num_sms>
 __device__ __forceinline__
 int get_linear_tile_id(int iter, int sm_id)
 {
-    int tile = (iter * NUM_SMS) + sm_id;
+    int tile = (iter * num_sms) + sm_id;
 
     // Out of range => no tile left
-    return (tile < NUM_TILES) ? tile : -1;
+    return (tile < num_tiles) ? tile : -1;
 }
 
 __device__ __forceinline__
