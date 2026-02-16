@@ -58,11 +58,11 @@ __global__ void matmul_kernel(
    asm volatile("fence.mbarrier_init.release.cluster;");  
   __syncthreads();
 
-
-  int block_start_m = (b/Cfg::GN)*Cfg::BM;
-  int block_start_n = (b%Cfg::GN)*Cfg::BN; 
+  int block_start_m, block_start_n; 
+  tile_sched::block_swizzle<Cfg::group_m, Cfg::group_n, Cfg::blocks_per_group, Cfg::G_outer_M, Cfg::G_outer_N, Cfg::BM,Cfg::BN>(b,block_start_m,block_start_n);
   int warp_start_m = (w/Cfg::warps_per_block_n)*Cfg::WM;
   int warp_start_n = (w%Cfg::warps_per_block_n)*Cfg::WN;
+
 
 
   if (w == Cfg::producer_warp_id)
@@ -104,9 +104,9 @@ __global__ void matmul_kernel(
   }
   else
   {
-    uint32_t ra[Cfg::acc_per_warp_m][Cfg::warp_k_iters][4];
-    uint32_t rb[Cfg::acc_per_warp_n][Cfg::warp_k_iters][2];
-    float rc[Cfg::acc_per_warp_m][Cfg::acc_per_warp_n][4] = {0.0}; 
+      uint32_t ra[Cfg::acc_per_warp_m][Cfg::warp_k_iters][4];
+      uint32_t rb[Cfg::acc_per_warp_n][Cfg::warp_k_iters][2];
+      float rc[Cfg::acc_per_warp_m][Cfg::acc_per_warp_n][4] = {0.0}; 
     #pragma unroll
     for (int stage = 0; stage < Cfg::bk_stages; stage++)
     {
@@ -127,7 +127,7 @@ __global__ void matmul_kernel(
         for (int wk_idx = 0; wk_idx < Cfg::warp_k_iters; wk_idx++)
         {
           int a_ld_shared_offset = (warp_start_m + (wm_idx*Cfg::mma_m) + (l%16))*Cfg::BK + (wk_idx*Cfg::mma_k + (8*(l/16)));
-          uint32_t a_ld_addr = As_base[stage] + (a_ld_shared_offset*sizeof(nv_bfloat16));
+          uint32_t a_ld_addr = As_base[stage] + cute_swizzle_byte_offset<Cfg::b_bits, Cfg::m_base, Cfg::s_shift, nv_bfloat16>(a_ld_shared_offset);
           wa::ldmatrix_m8n8_x4_b16(ra[wm_idx][wk_idx], a_ld_addr);
 
         }
@@ -140,7 +140,7 @@ __global__ void matmul_kernel(
         for (int wk_idx = 0; wk_idx < Cfg::warp_k_iters/2; wk_idx++) //load 2 warp_k iters at once
         {
           int b_ld_shared_offset = (warp_start_n + (wn_idx*Cfg::mma_n) + (l%8))*Cfg::BK + ((2*wk_idx*Cfg::mma_k) + (8*(l/8)));
-          uint32_t b_ld_addr = Bs_base[stage] + (b_ld_shared_offset*sizeof(nv_bfloat16));
+          uint32_t b_ld_addr = Bs_base[stage] + cute_swizzle_byte_offset<Cfg::b_bits, Cfg::m_base, Cfg::s_shift, nv_bfloat16>(b_ld_shared_offset);
           wa::ldmatrix_m8n8_x4_b16(rb[wn_idx][2*wk_idx], b_ld_addr);
 
         }

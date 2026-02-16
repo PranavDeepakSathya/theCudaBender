@@ -41,5 +41,50 @@ void morton_decode_2d(uint32_t tile_id, uint32_t &m, uint32_t &n)
     n = compact1by1(tile_id >> 1);
 }
 
+  template<
+      int group_m,
+      int group_n,
+      int blocks_per_group,
+      int g_outer_m,
+      int g_outer_n,
+      int BM,
+      int BN>
+      
+  __device__ __forceinline__
+  void block_swizzle(
+      int b,
+      int &block_start_m,
+      int &block_start_n
+  )
+  {
+      
+
+      int group_id = b / blocks_per_group;
+      int local_id = b % blocks_per_group;
+
+      // -------------------------
+      // outer group coords (COL-MAJOR)
+      // group_id = group_n * g_outer_m + group_m
+      // -------------------------
+      int global_m = group_id % g_outer_m;
+      int global_n = group_id / g_outer_m;
+
+      // -------------------------
+      // inner coords (ROW-MAJOR)
+      // local_id = local_m * group_n + local_n
+      // -------------------------
+      int local_m = local_id / group_n;
+      int local_n = local_id % group_n;
+
+      // -------------------------
+      // final tile coords
+      // -------------------------
+      int tile_m = global_m * group_m + local_m;
+      int tile_n = global_n * group_n + local_n;
+
+      block_start_m = tile_m * BM;
+      block_start_n = tile_n * BN;
+  }
+
 
 } 
