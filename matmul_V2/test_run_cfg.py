@@ -1,11 +1,27 @@
 import json
 import subprocess
 import sys
+import torch
+from pathlib import Path
 
-CFG_FILE = sys.argv[1] if len(sys.argv) > 1 else "5090_cfg.json"
+GPU_NAME = torch.cuda.get_device_name()
+
+print("\n=== GPU Detected ===")
+print(GPU_NAME)
+
+if "5090" in GPU_NAME:
+    cfg_file = "5090_cfg.json"
+elif "6000" in GPU_NAME:
+    cfg_file = "6000_cfg.json"
+else:
+    raise RuntimeError(f"No config file mapped for GPU: {GPU_NAME}")
+
+print("\nUsing config:", cfg_file)
 
 
-with open(CFG_FILE) as f:
+cfg_path = Path(__file__).parent / cfg_file
+
+with open(cfg_path) as f:
     cfg = json.load(f)
 
 print("\n=== Loaded Config ===")
