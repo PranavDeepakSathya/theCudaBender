@@ -66,14 +66,16 @@ torch::Tensor gemm(torch::Tensor A, torch::Tensor B)
         TmaDescriptor<nv_bfloat16>::create_2d_row_major(
             A_ptr,
             {Cfg::M, Cfg::K},
-            {Cfg::BM, Cfg::BK}
+            {Cfg::BM, Cfg::BK},
+            Cfg::swizzle_mode;
         );
 
     CUtensorMap b_map =
         TmaDescriptor<nv_bfloat16>::create_2d_col_major(
             B_ptr,
             {Cfg::K, Cfg::N},
-            {Cfg::BK, Cfg::BN}
+            {Cfg::BK, Cfg::BN},
+            Cfg::swizzle_mode;
         );
 
     // ------------------------------------------------------------
