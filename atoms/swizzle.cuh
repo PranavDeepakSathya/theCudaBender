@@ -26,3 +26,13 @@ uint32_t cute_swizzle_byte_offset(int elem_offset)
         return byte_off ^ ((byte_off & yyy_mask) << (-SShift));
     }
 }
+
+template<int SwizzleNum>
+__device__ __forceinline__
+uint32_t compact_swizzle(uint32_t x)
+{
+    static_assert(SwizzleNum != 0, "SwizzleNum must be nonzero.");
+
+    // Core compact form
+    return x ^ ((x & SwizzleNum) >> 3);
+}

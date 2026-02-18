@@ -61,13 +61,8 @@ __global__ void matmul_kernel(
 
   int warp_start_m = (w/Cfg::warps_per_block_n)*Cfg::WM;
   int warp_start_n = (w%Cfg::warps_per_block_n)*Cfg::WN;
-  uint32_t a_ld_shared_base = ((warp_start_m + (l%16))*Cfg::BK + ((8*(l/16))))*sizeof(nv_bfloat16);
-  uint32_t b_ld_shared_base = ((warp_start_n + (l%8))*Cfg::BK + (8*(l/8)))*sizeof(nv_bfloat16);
-  int C_row_warp = warp_start_m + (l/4);
-  int C_col_warp = warp_start_n + (2*(l%4));
 
-  float2* C2 = reinterpret_cast<float2*>(C); 
-  int ldc2 = Cfg::N/2;
+
 
   if (w == Cfg::producer_warp_id)
   {
@@ -140,8 +135,6 @@ __global__ void matmul_kernel(
       uint32_t ra[Cfg::acc_per_warp_m][Cfg::warp_k_iters][4];
       uint32_t rb[Cfg::acc_per_warp_n][Cfg::warp_k_iters][2];
       float rc[Cfg::acc_per_warp_m][Cfg::acc_per_warp_n][4] = {0.0}; 
-      int C_row_block = C_row_warp + block_start_m;
-      int C_col_block = C_col_warp + block_start_n; 
 
       #pragma unroll
       for (int bk_idx = 0; bk_idx < Cfg::block_k_iters; bk_idx++)
@@ -156,7 +149,8 @@ __global__ void matmul_kernel(
           #pragma unroll
           for (int wk_idx = 0; wk_idx < Cfg::warp_k_iters; wk_idx++)
           {
-            uint32_t a_ld_addr = As_base[stage] + compact_swizzle<Cfg::swizzle_num>((uint32_t)(a_ld_shared_base + ((wm_idx*Cfg::mma_m)*Cfg::BK + (wk_idx*Cfg::mma_k))*sizeof(nv_bfloat16)));
+            int a_ld_shared_offset = (warp_start_m + (wm_idx*Cfg::mma_m) + (l%16))*Cfg::BK + (wk_idx*Cfg::mma_k + (8*(l/16)));
+            uint32_t a_ld_addr = As_base[stage] + cute_swizzle_byte_offset<Cfg::b_bits, Cfg::m_base, Cfg::s_shift, nv_bfloat16>(a_ld_shared_offset);
             wa::ldmatrix_m8n8_x4_b16(ra[wm_idx][wk_idx], a_ld_addr);
 
           }
@@ -168,8 +162,8 @@ __global__ void matmul_kernel(
           #pragma unroll
           for (int wk_idx = 0; wk_idx < Cfg::warp_k_iters/2; wk_idx++) //load 2 warp_k iters at once
           {
-            
-            uint32_t b_ld_addr = Bs_base[stage] + compact_swizzle<Cfg::swizzle_num>((uint32_t)(b_ld_shared_base + ((wn_idx*Cfg::mma_n)*Cfg::BK + (2*wk_idx*Cfg::mma_k))*sizeof(nv_bfloat16)));
+            int b_ld_shared_offset = (warp_start_n + (wn_idx*Cfg::mma_n) + (l%8))*Cfg::BK + ((2*wk_idx*Cfg::mma_k) + (8*(l/8)));
+            uint32_t b_ld_addr = Bs_base[stage] + cute_swizzle_byte_offset<Cfg::b_bits, Cfg::m_base, Cfg::s_shift, nv_bfloat16>(b_ld_shared_offset);
             wa::ldmatrix_m8n8_x4_b16(rb[wn_idx][2*wk_idx], b_ld_addr);
 
           }
@@ -192,6 +186,10 @@ __global__ void matmul_kernel(
         empty_tokens[stage] = ptx::mbarrier_arrive(&empty[stage]); 
       }
 
+      float2* C2 = reinterpret_cast<float2*>(C); 
+      int lane_row = l/4; 
+      int lane_col = 2*(l%4); 
+      int ldc2 = Cfg::N/2;
 
       #pragma unroll
       for (int wm_idx = 0; wm_idx < Cfg::acc_per_warp_m; wm_idx++)
@@ -199,8 +197,8 @@ __global__ void matmul_kernel(
         #pragma unroll
         for (int wn_idx = 0; wn_idx < Cfg::acc_per_warp_n; wn_idx++)
         {
-          int C_row = C_row_block +  (wm_idx*Cfg::mma_m);
-          int C_col = (C_col_block + (wn_idx*Cfg::mma_n))/2;
+          int C_row = block_start_m + warp_start_m + (wm_idx*Cfg::mma_m) + lane_row;
+          int C_col = (block_start_n + warp_start_n + (wn_idx*Cfg::mma_n) + lane_col)/2;
     
           float2 v0 = {rc[wm_idx][wn_idx][0], rc[wm_idx][wn_idx][1]}; 
           float2 v1 = {rc[wm_idx][wn_idx][2], rc[wm_idx][wn_idx][3]}; 

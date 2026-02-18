@@ -146,12 +146,14 @@ struct GemmConfig
 
   static_assert(swizzle_mode != CU_TENSOR_MAP_SWIZZLE_NONE);
 
-static constexpr int swizzle_num =
-    (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_32B)  ? 128  :
-    (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_64B)  ? 384  :
-    (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_128B) ? 896 :
-                                                   0;
+  static constexpr int m_base  = 4;
+  static constexpr int s_shift = 3;
 
-static_assert(swizzle_num != 0,
-              "Invalid swizzle_num mapping");
+  static constexpr int b_bits =
+      (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_32B)  ? 1 :
+      (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_64B)  ? 2 :
+      (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_128B) ? 3 :
+                                                     0;
+
+  static_assert(b_bits != 0);
 };
