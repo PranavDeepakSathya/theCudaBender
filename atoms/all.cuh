@@ -7,3 +7,4 @@
 #include "swizzle.cuh"
 #include "tile_scheduler.cuh"
 #include "sm_120_warp_instructions.cuh"
+#include "ptx_wrap.cuh"
