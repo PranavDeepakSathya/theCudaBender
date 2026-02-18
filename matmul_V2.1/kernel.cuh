@@ -28,6 +28,9 @@ __global__ void matmul_kernel(
   tile_sched::block_swizzle<Cfg::group_m, Cfg::group_n, Cfg::blocks_per_group, Cfg::G_outer_M, Cfg::G_outer_N, Cfg::BM,Cfg::BN>(b,block_start_m,block_start_n);
   int warp_start_m = (w/Cfg::warps_per_block_n)*Cfg::WM;
   int warp_start_n = (w%Cfg::warps_per_block_n)*Cfg::WN;
+  int C_row_start = block_start_m + warp_start_m + (l/4);
+  int C_col_start = block_start_n + warp_start_n + 2*(l%4);
+
 
   if (t == 0)
   {
@@ -144,8 +147,6 @@ __global__ void matmul_kernel(
     }
 
     float2* C2 = reinterpret_cast<float2*>(C); 
-    int lane_row = l/4; 
-    int lane_col = 2*(l%4); 
     int ldc2 = Cfg::N/2;
 
     #pragma unroll
@@ -154,8 +155,8 @@ __global__ void matmul_kernel(
       #pragma unroll
       for (int wn_idx = 0; wn_idx < Cfg::acc_per_warp_n; wn_idx++)
       {
-        int C_row = block_start_m + warp_start_m + (wm_idx*Cfg::mma_m) + lane_row;
-        int C_col = (block_start_n + warp_start_n + (wn_idx*Cfg::mma_n) + lane_col)/2;
+        int C_row = C_row_start + (wm_idx*Cfg::mma_m);
+        int C_col = (C_col_start + (wn_idx*Cfg::mma_n))/2;
   
         float2 v0 = {rc[wm_idx][wn_idx][0], rc[wm_idx][wn_idx][1]}; 
         float2 v1 = {rc[wm_idx][wn_idx][2], rc[wm_idx][wn_idx][3]}; 
@@ -164,7 +165,6 @@ __global__ void matmul_kernel(
       }
     }
   }
-
 
 }
 
