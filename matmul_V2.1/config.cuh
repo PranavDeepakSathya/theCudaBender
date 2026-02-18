@@ -90,7 +90,7 @@ struct GemmConfig
   static constexpr uint32_t Bs_bytes =
       BK * BN * sizeof(nv_bfloat16);
 
-  static constexpr uint32_t smem_overhead = 4 * 1024;
+  static constexpr uint32_t smem_overhead = 32*bk_stages;
 
   static constexpr uint32_t shared_bytes =
       ((As_bytes + Bs_bytes) * bk_stages) + smem_overhead;
