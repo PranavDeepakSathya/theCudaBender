@@ -8,7 +8,7 @@ template <class Cfg>
 void benchmark_kernel(
     CUtensorMap a_map,
     CUtensorMap b_map,
-    float* C_dev,
+    CUtensorMap c_map,
     int warmup = 200,
     int iters  = 20000)
 {
@@ -21,7 +21,7 @@ void benchmark_kernel(
 
     // Warmup
     for (int i = 0; i < warmup; i++)
-        launcher.launch(matmul_kernel<Cfg>, a_map, b_map, C_dev);
+        launcher.launch(matmul_kernel<Cfg>, a_map, b_map, c_map);
 
     cudaDeviceSynchronize();
 
@@ -33,7 +33,7 @@ void benchmark_kernel(
     cudaEventRecord(start);
 
     for (int i = 0; i < iters; i++)
-        launcher.launch(matmul_kernel<Cfg>, a_map, b_map, C_dev);
+        launcher.launch(matmul_kernel<Cfg>, a_map, b_map, c_map);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -166,6 +166,14 @@ int main()
             Cfg::swizzle_mode
         );
 
+    CUtensorMap c_map = 
+        TmaDescriptor<float>::create_2d_row_major(
+          C.d_ptr,
+          {Cfg::M, Cfg::N},
+          {Cfg::BM, Cfg::BN}
+          
+        );
+
     NaiveLauncher launcher(
         Cfg::grid_size,
         1,
@@ -173,7 +181,7 @@ int main()
         Cfg::shared_bytes
     );
 
-    launcher.launch(matmul_kernel<Cfg>, a_map, b_map, C.d_ptr);
+    launcher.launch(matmul_kernel<Cfg>, a_map, b_map, c_map);
     cudaDeviceSynchronize();
 
     C.to_host();
@@ -198,7 +206,7 @@ int main()
     verify_result(C, C_ref, Cfg::M, Cfg::N);
     
 
-    benchmark_kernel<Cfg>(a_map, b_map, C.d_ptr);
+    benchmark_kernel<Cfg>(a_map, b_map, c_map);
 
     return 0;
 

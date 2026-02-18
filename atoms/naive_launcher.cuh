@@ -38,12 +38,19 @@ public:
         config.attrs = attribute;
         config.numAttrs = 1;
 
-        // 4. Set Max SMEM if needed
-        if (smem_bytes > 48 * 1024) {
-            CHECK_CUDA(cudaFuncSetAttribute(kernel, 
-                cudaFuncAttributeMaxDynamicSharedMemorySize, smem_bytes));
-        }
+       // Always bias the unified cache toward shared memory
+        CHECK_CUDA(cudaFuncSetAttribute(
+            kernel,
+            cudaFuncAttributePreferredSharedMemoryCarveout,
+            cudaSharedmemCarveoutMaxShared
+        ));
 
+        // Always opt-in to the full dynamic shared memory size you plan to use
+        CHECK_CUDA(cudaFuncSetAttribute(
+            kernel,
+            cudaFuncAttributeMaxDynamicSharedMemorySize,
+            smem_bytes
+        ));
         // 5. Launch
         // NOTE: We pass 'args...' directly. 
         // cudaLaunchKernelEx (Runtime API) is a template that packs them for us.

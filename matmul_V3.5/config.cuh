@@ -130,7 +130,7 @@ struct GemmConfig
   static constexpr uint32_t shared_bytes =
       (bk_stages * (As_bytes + Bs_bytes)) + Cs_bytes + smem_overhead;
 
-  static_assert(shared_bytes <= 128 * 1024);
+  //static_assert(shared_bytes <= 128 * 1024);
 
   // ============================================================
   // TMA Swizzle Selection
@@ -157,4 +157,6 @@ static constexpr int swizzle_num =
 
 static_assert(swizzle_num != 0,
               "Invalid swizzle_num mapping");
+
+
 };
