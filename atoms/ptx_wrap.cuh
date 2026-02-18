@@ -84,7 +84,7 @@ __device__ inline void cp_async_bulk_tensor_2d(
     uint32_t dst_smem_addr,
     const void* tmap_ptr,
     int x, int y,
-    uint32_t mbarrier_full_addr
+    uint32_t mbarrier_addr
 ) {
   asm volatile(
     "cp.async.bulk.tensor.2d.shared::cta.global."
@@ -93,7 +93,7 @@ __device__ inline void cp_async_bulk_tensor_2d(
     :: "r"(dst_smem_addr),
        "l"(tmap_ptr),
        "r"(x), "r"(y),
-       "r"(mbarrier_full_addr)
+       "r"(mbarrier_addr)
     : "memory"
   );
 }

@@ -9,5 +9,10 @@ and use the 'precompute address' tricks. In fact, hand planning our kernels migh
 and somehow escape the fucking soup of shit we're doing right now. 
 
 
+Gau is saying that ptx wrappers are faster, I beleive him. 
+he is also saying that perhaps pre fetching the next mma_k iteration is useful. 
+many things to think about in a clear head for sure. 
+right now we are hazed as fuck 
+another thing is that we probably don't need to align each alloc. its useless. 
 
 
