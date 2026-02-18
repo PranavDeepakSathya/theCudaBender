@@ -125,6 +125,7 @@ void verify_result(
     else          printf("❌ FAILED\n");
 }
 
+
 int main()
 {
     using Cfg = GemmConfig;

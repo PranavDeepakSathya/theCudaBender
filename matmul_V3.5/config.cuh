@@ -4,15 +4,15 @@
 #include <cstdint>
 
 #ifndef ACC_PER_WARP_M
-#define ACC_PER_WARP_M 4
+#define ACC_PER_WARP_M 2
 #endif
 
 #ifndef ACC_PER_WARP_N
-#define ACC_PER_WARP_N 4
+#define ACC_PER_WARP_N 2
 #endif
 
 #ifndef WARP_K_ITERS
-#define WARP_K_ITERS 4
+#define WARP_K_ITERS 2
 #endif
 
 #ifndef WARPS_PER_BLOCK_M
@@ -20,7 +20,7 @@
 #endif
 
 #ifndef WARPS_PER_BLOCK_N
-#define WARPS_PER_BLOCK_N 4
+#define WARPS_PER_BLOCK_N 2
 #endif
 
 #ifndef BK_STAGES
@@ -28,7 +28,7 @@
 #endif
 
 #ifndef NUM_SMS
-#define NUM_SMS 188
+#define NUM_SMS 170
 #endif
 
 static constexpr bool is_pow2(int x)

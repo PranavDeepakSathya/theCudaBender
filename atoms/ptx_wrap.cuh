@@ -87,13 +87,42 @@ __device__ inline void cp_async_bulk_tensor_2d(
     uint32_t mbarrier_addr
 ) {
   asm volatile(
-    "cp.async.bulk.tensor.2d.shared::cta.global."
-    "mbarrier::complete_tx::bytes "
+    "cp.async.bulk.tensor.2d.shared::cta.global.tile.mbarrier::complete_tx::bytes "
+    
     "[%0], [%1, {%2, %3}], [%4];\n"
     :: "r"(dst_smem_addr),
        "l"(tmap_ptr),
        "r"(x), "r"(y),
        "r"(mbarrier_addr)
+    : "memory"
+  );
+}
+
+__device__ inline void cp_async_bulk_tensor_2d_store(
+    const void* tmap_ptr,
+    int x, int y,
+    uint32_t src_smem_addr
+) {
+  asm volatile(
+    "cp.async.bulk.tensor.2d.global.shared::cta.tile.bulk_group "
+    "[%0, {%1, %2}], [%3];\n"
+    :: "l"(tmap_ptr),
+       "r"(x), "r"(y),
+       "r"(src_smem_addr)
+    : "memory"
+  );
+}
+__device__ inline void cp_async_commit_group() {
+  asm volatile(
+    "cp.async.commit_group;\n"
+    ::: "memory"
+  );
+}
+template<int N>
+__device__ inline void cp_async_wait_group() {
+  asm volatile(
+    "cp.async.wait_group %0;\n"
+    :: "n"(N)
     : "memory"
   );
 }
