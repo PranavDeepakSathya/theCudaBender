@@ -1,10 +1,10 @@
 {
   "ACC_PER_WARP_M": 4,
   "ACC_PER_WARP_N": 4,
-  "WARP_K_ITERS": 4,
+  "WARP_K_ITERS": 2,
   "WARPS_PER_BLOCK_M": 2,
   "WARPS_PER_BLOCK_N": 4,
-  "BK_STAGES": 2,
+  "BK_STAGES": 3,
   "GROUP_M":8,
   "GROUP_N":8
   
