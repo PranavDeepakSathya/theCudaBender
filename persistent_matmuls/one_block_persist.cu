@@ -13,17 +13,21 @@ constexpr int bm = wpb_m*wm;
 constexpr int bn = wpb_n*wn; 
 constexpr int wk_iters = 2;
 constexpr int bk = wk_iters*mma_k; 
-constexpr int bm_iters = 16;
-constexpr int bn_iters = 16; 
+constexpr int bm_iters = 8;
+constexpr int bn_iters = 8; 
 constexpr int bk_stages = 2; 
 constexpr int producer_id = wpb_m*wpb_n; 
 constexpr int block_size = ((wpb_m*wpb_n) + 1)*32;
-constexpr int grid_size = 1; 
-constexpr int M = bm*bm_iters; 
-constexpr int N = bn*bn_iters; 
-constexpr int K = 4096;
-constexpr int bk_iters = K/bk; 
 
+constexpr int sM = bm*bm_iters; 
+constexpr int sN = bn*bn_iters; 
+constexpr int K = 8192;
+constexpr int bk_iters = K/bk; 
+constexpr int M = 8192;
+constexpr int N = 8192; 
+constexpr int GM = M/sM;
+constexpr int GN = N/sN; 
+constexpr int grid_size = GM*GN; 
 namespace ptx = cuda::ptx;
 
 constexpr uint32_t As_bytes = bm*bk*sizeof(nv_bfloat16);
@@ -67,7 +71,7 @@ __global__ void matmul(const __grid_constant__ CUtensorMap a_map,
   uint64_t full_tokens[bk_stages];
 
 
-
+  int b = blockIdx.x; 
   int t = threadIdx.x; 
   int w = t/32; 
   int l = t%32; 
@@ -77,6 +81,9 @@ __global__ void matmul(const __grid_constant__ CUtensorMap a_map,
   int b_l_col = l%8;
   int warp_m_start = (w/wpb_n)*wm;
   int warp_n_start = (w%wpb_n)*wn; 
+  int sm_start = (b/GN)*sM;
+  int sn_start = (b%GN)*sN;
+
 
 
 
@@ -99,8 +106,8 @@ __global__ void matmul(const __grid_constant__ CUtensorMap a_map,
     for (int block_iter = 0; block_iter < bm_iters*bn_iters; block_iter++)
     {
 
-      int block_m_start = (block_iter/bn_iters)*bm;
-      int block_n_start = (block_iter%bn_iters)*bn; 
+      int block_m_start = (sm_start) + (block_iter/bn_iters)*bm;
+      int block_n_start = (sn_start) + (block_iter%bn_iters)*bn; 
 
       for (int bk_idx = 0; bk_idx < bk_iters; bk_idx++)
       {
@@ -153,8 +160,8 @@ __global__ void matmul(const __grid_constant__ CUtensorMap a_map,
       float rc[apw_m*apw_n*4] = {0.0}; 
 
       
-      int block_m_start = (block_iter/bn_iters)*bm;
-      int block_n_start = (block_iter%bn_iters)*bn; 
+      int block_m_start = (sm_start) + (block_iter/bn_iters)*bm;
+      int block_n_start = (sn_start) + (block_iter%bn_iters)*bn; 
 
       #pragma unroll
       for (int bk_idx = 0; bk_idx < bk_iters; bk_idx++)
