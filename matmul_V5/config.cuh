@@ -97,7 +97,7 @@ struct GemmConfig
 
   static constexpr int GM = M / BM;
   static constexpr int GN = N / BN;
-
+  static_assert(GM == GN);
   // ============================================================
   // Persistent Scheduling Extension
   // ============================================================
@@ -122,7 +122,7 @@ struct GemmConfig
   static constexpr uint32_t Bs_bytes =
       BK * BN * sizeof(nv_bfloat16);
 
-  static constexpr uint32_t smem_overhead = 16*bk_stages + 4;
+  static constexpr uint32_t smem_overhead = (16*bk_stages);
 
   static constexpr uint32_t shared_bytes =
       bk_stages * (As_bytes + Bs_bytes) + smem_overhead;

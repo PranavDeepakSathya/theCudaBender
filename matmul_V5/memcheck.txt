@@ -1,0 +1,9 @@
+========= COMPUTE-SANITIZER
+Kernel launch complete.
+
+==== Verification ====
+Max abs error : 2.288818e-04
+Max rel error : 1.109244e+00
+Bad elements  : 0
+✅ PASSED
+========= ERROR SUMMARY: 0 errors

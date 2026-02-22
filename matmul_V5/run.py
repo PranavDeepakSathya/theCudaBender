@@ -74,35 +74,45 @@ print("\n=== Error Percentiles (abs) ===")
 for q, v in zip(qs.cpu().tolist(), vals):
     print(f"{q*100:6.2f}% : {v:.6e}")
 
+torch.set_printoptions(
+    threshold=float("inf"),
+    linewidth=200,
+    precision=1,
+    sci_mode=False,
+    edgeitems=None,
+)
+print("\n--- C (0/1 mask) ---")
+print((C != 0).int())
 
-print("\n=== Benchmark ===")
 
-warmup = 20
-iters = 20000
+# print("\n=== Benchmark ===")
 
-for _ in range(warmup):
-    ext.gemm(A, B)
+# warmup = 20
+# iters = 20000
 
-torch.cuda.synchronize()
-t0 = time.time()
+# for _ in range(warmup):
+#     ext.gemm(A, B)
 
-for _ in range(iters):
-    ext.gemm(A, B)
+# torch.cuda.synchronize()
+# t0 = time.time()
 
-torch.cuda.synchronize()
-t1 = time.time()
+# for _ in range(iters):
+#     ext.gemm(A, B)
 
-avg_ms = (t1 - t0) * 1e3 / iters
+# torch.cuda.synchronize()
+# t1 = time.time()
 
-flops = 2.0 * M * N * K
-tflops = flops / ((avg_ms * 1e-3) * 1e12)
+# avg_ms = (t1 - t0) * 1e3 / iters
 
-print(f"Avg time: {avg_ms:.4f} ms")
-print(f"TFLOP/s : {tflops:.2f}")
+# flops = 2.0 * M * N * K
+# tflops = flops / ((avg_ms * 1e-3) * 1e12)
 
-print("\n=== Tensor Debug ===")
-print("A stride:", A.stride(), "contig:", A.is_contiguous())
-print("B stride:", B.stride(), "contig:", B.is_contiguous())
-print("C has NaN:", torch.isnan(C).any().item())
+# print(f"Avg time: {avg_ms:.4f} ms")
+# print(f"TFLOP/s : {tflops:.2f}")
 
-print("\nDone.")
+# print("\n=== Tensor Debug ===")
+# print("A stride:", A.stride(), "contig:", A.is_contiguous())
+# print("B stride:", B.stride(), "contig:", B.is_contiguous())
+# print("C has NaN:", torch.isnan(C).any().item())
+
+# print("\nDone.")
