@@ -119,4 +119,22 @@ void mma_m16n8k16_row_col_f32_bf16(
     );
 }
 
+__device__ __forceinline__
+void mma_m16n8k16_row_col_f16_f16(
+    uint32_t c[2],          // each holds 2x f16
+    const uint32_t a[4],
+    const uint32_t b[2]
+) {
+    asm volatile(
+        "mma.sync.aligned.m16n8k16.row.col.f16.f16.f16.f16 "
+        "{%0, %1}, "
+        "{%2, %3, %4, %5}, "
+        "{%6, %7}, "
+        "{%0, %1};"
+        : "+r"(c[0]), "+r"(c[1])
+        : "r"(a[0]), "r"(a[1]), "r"(a[2]), "r"(a[3]),
+          "r"(b[0]), "r"(b[1])
+    );
+}
+
 } // namespace warp_atom
