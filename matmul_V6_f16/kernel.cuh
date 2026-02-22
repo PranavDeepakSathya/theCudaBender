@@ -170,6 +170,7 @@ __global__ void matmul_kernel(
           wa::stmatrix_m8n8_x2_b16(rc[m][n], smem.C(c_stage)+c_st_offset);
         }
       }
+      asm volatile("bar.sync %0, %1;" :: "n"(1), "n"(Cfg::warps_per_block_m*Cfg::warps_per_block_n*32));
       tma_fence();
       if(l == 0)
       {
