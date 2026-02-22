@@ -31,8 +31,9 @@ template<int SwizzleNum>
 __device__ __forceinline__
 uint32_t compact_swizzle(uint32_t x)
 {
-    static_assert(SwizzleNum != 0, "SwizzleNum must be nonzero.");
-
-    // Core compact form
-    return x ^ ((x & SwizzleNum) >> 3);
+    if constexpr (SwizzleNum == 0) {
+        return x;  // no swizzle
+    } else {
+        return x ^ ((x & SwizzleNum) >> 3);
+    }
 }
