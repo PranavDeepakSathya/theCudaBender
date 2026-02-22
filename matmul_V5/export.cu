@@ -77,13 +77,7 @@ torch::Tensor gemm(torch::Tensor A, torch::Tensor B)
             {Cfg::BK, Cfg::BN},
             Cfg::swizzle_mode
         );
-    CUtensorMap c_map =
-        TmaDescriptor<float>::create_2d_row_major(
-            C_ptr,
-            {Cfg::M, Cfg::N},
-            {Cfg::BM, Cfg::BN}
-            
-        );
+
     // ------------------------------------------------------------
     // Launch kernel
     // ------------------------------------------------------------
@@ -94,7 +88,7 @@ torch::Tensor gemm(torch::Tensor A, torch::Tensor B)
         Cfg::shared_bytes
     );
 
-    launch_matmul<Cfg>(launcher, a_map, b_map, c_map);
+    launch_matmul<Cfg>(launcher, a_map, b_map, C_ptr);
 
     // ---- REQUIRED for autotuning ----
     C10_CUDA_KERNEL_LAUNCH_CHECK();

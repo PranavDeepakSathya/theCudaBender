@@ -4,15 +4,15 @@
 #include <cstdint>
 
 #ifndef ACC_PER_WARP_M
-#define ACC_PER_WARP_M 2
+#define ACC_PER_WARP_M 4
 #endif
 
 #ifndef ACC_PER_WARP_N
-#define ACC_PER_WARP_N 2
+#define ACC_PER_WARP_N 4
 #endif
 
 #ifndef WARP_K_ITERS
-#define WARP_K_ITERS 2
+#define WARP_K_ITERS 4
 #endif
 
 #ifndef WARPS_PER_BLOCK_M
@@ -20,7 +20,7 @@
 #endif
 
 #ifndef WARPS_PER_BLOCK_N
-#define WARPS_PER_BLOCK_N 2
+#define WARPS_PER_BLOCK_N 4
 #endif
 
 #ifndef BK_STAGES
@@ -28,7 +28,7 @@
 #endif
 
 #ifndef NUM_SMS
-#define NUM_SMS 170
+#define NUM_SMS 188
 #endif
 
 static constexpr bool is_pow2(int x)
@@ -122,13 +122,10 @@ struct GemmConfig
   static constexpr uint32_t Bs_bytes =
       BK * BN * sizeof(nv_bfloat16);
 
-  static constexpr uint32_t Cs_bytes = 
-    BM * BN * sizeof(float);
-
-  static constexpr uint32_t smem_overhead = 8 * 1024;
+  static constexpr uint32_t smem_overhead = 16*bk_stages + 4;
 
   static constexpr uint32_t shared_bytes =
-      (bk_stages * (As_bytes + Bs_bytes)) + Cs_bytes + smem_overhead;
+      bk_stages * (As_bytes + Bs_bytes) + smem_overhead;
 
   //static_assert(shared_bytes <= 100 * 1024);
 
