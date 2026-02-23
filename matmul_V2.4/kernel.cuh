@@ -130,16 +130,26 @@ __global__ void matmul_kernel(
   {
     int stage = 0; 
     int phase = 0; 
+
+
     uint32_t ra[Cfg::acc_per_warp_m][Cfg::warp_k_iters][4]; 
     uint32_t rb[Cfg::acc_per_warp_n][Cfg::warp_k_iters][2];
     float rc[Cfg::acc_per_warp_m][Cfg::acc_per_warp_n][4] = {0.0};
+    
+    mbarrier_wait_parity(smem.full(stage),phase);
+    //outer_prologue
+    ldm_A_k(ra,0,stage);
+    ldm_B_k(rb,0,stage);
 
-    for (int bk_idx = 0; bk_idx < Cfg::block_k_iters; bk_idx++)
+    for (int bk_idx = 0; bk_idx < Cfg::block_k_iters-1; bk_idx++)
     {
-      mbarrier_wait_parity(smem.full(stage),phase);
-      //prologue 
-      ldm_A_k(ra,0,stage);
-      ldm_B_k(rb,0,stage);
+      int next_stage = stage + 1;
+      int next_phase = phase;
+
+      if (next_stage == Cfg::bk_stages) {
+          next_stage = 0;
+          next_phase ^= 1;
+      }
 
       for (int k = 0; k < Cfg::warp_k_iters-1;k++)
       {
@@ -147,13 +157,26 @@ __global__ void matmul_kernel(
         ldm_B_k(rb,k+1,stage);
         mma_k(rc,ra,rb,k);
       }
-      //epilogue 
       mbarrier_arrive(smem.empty(stage));
       mma_k(rc,ra,rb,Cfg::warp_k_iters-1);
+      mbarrier_wait_parity(smem.full(next_stage),next_phase);
+      ldm_A_k(ra,0,next_stage);
+      ldm_B_k(rb,0,next_stage);
 
-      stage = (stage + 1) % Cfg::bk_stages;
-      if (stage == 0) phase ^= 1;
+      stage = next_stage;
+      phase = next_phase;
+
     }
+    #pragma unroll
+    for (int k = 0; k < Cfg::warp_k_iters - 1; k++)
+    {
+      ldm_A_k(ra, k+1, stage);
+      ldm_B_k(rb, k+1, stage);
+      mma_k(rc, ra, rb, k);
+    }
+
+    mma_k(rc, ra, rb, Cfg::warp_k_iters - 1);
+    mbarrier_arrive(smem.empty(stage));
 
     store_c(rc);
   }
