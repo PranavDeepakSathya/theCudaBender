@@ -5,7 +5,7 @@
 // ============================================================
 __global__ void smem_latency(uint64_t* out, uint32_t* sink, int iters)
 {
-    extern __shared__ __align__(128) nv_bfloat16 smem[];
+    extern __shared__ __align__(1024) nv_bfloat16 smem[];
 
     // --------------------------------------
     // fill smem (single thread is fine)
