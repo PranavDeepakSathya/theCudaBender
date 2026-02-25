@@ -135,6 +135,46 @@ void mma_m16n8k16_row_col_f16_f16(
         : "r"(a[0]), "r"(a[1]), "r"(a[2]), "r"(a[3]),
           "r"(b[0]), "r"(b[1])
     );
-}
+
+  }
+
+  __device__ __forceinline__
+  void ldmatrix_m8n8_x4_trans_b16(
+      uint32_t r[4],
+      const uint32_t smem_addr
+  ) {
+      asm volatile(
+          "ldmatrix.sync.aligned.m8n8.x4.trans.shared.b16 "
+          "{%0, %1, %2, %3}, [%4];"
+          : "=r"(r[0]), "=r"(r[1]), "=r"(r[2]), "=r"(r[3])
+          : "r"(smem_addr)
+      );
+    }
+
+    __device__ __forceinline__
+  void ldmatrix_m8n8_x2_trans_b16(
+      uint32_t r[2],
+      const uint32_t smem_addr
+  ) {
+      asm volatile(
+          "ldmatrix.sync.aligned.m8n8.x2.trans.shared.b16 "
+          "{%0, %1}, [%2];"
+          : "=r"(r[0]), "=r"(r[1])
+          : "r"(smem_addr)
+      );
+  }
+
+    __device__ __forceinline__
+  void ldmatrix_m8n8_x1_trans_b16(
+      uint32_t r[1],
+      const uint32_t smem_addr
+  ) {
+      asm volatile(
+          "ldmatrix.sync.aligned.m8n8.x1.trans.shared.b16 "
+          "{%0}, [%1];"
+          : "=r"(r[0])
+          : "r"(smem_addr)
+      );
+  }
 
 } // namespace warp_atom

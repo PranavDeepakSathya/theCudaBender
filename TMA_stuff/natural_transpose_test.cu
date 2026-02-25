@@ -1,0 +1,65 @@
+#include "../atoms/all.cuh"
+constexpr int m = 16; 
+constexpr int n = 8; 
+constexpr int grid_size = 1; 
+constexpr int block_size = 32; 
+namespace wa = warp_function;
+
+
+__global__ void transpose_kernel(__grid_constant__ const CUtensorMap a_map,
+                                __grid_constant__ const CUtensorMap a_out_map)
+
+{
+  extern __shared__ __align__(1024) uint8_t smem_raw[];
+  uint32_t As = static_cast<uint32_t>(__cvta_generic_to_shared(smem_raw)); 
+  uint32_t As_out = As + (m*n*sizeof(nv_bfloat16)); 
+  uint32_t bar = As_out + (m*n*sizeof(nv_bfloat16)); 
+  uint32_t ra[2];
+
+  int l = threadIdx.x; 
+  if (l==0) mbarrier_init(bar,32); 
+  __syncthreads(); 
+
+  if (l==0)
+  {
+    cp_async_bulk_tensor_2d(As, &a_map, 0,0, bar);
+    mbarrier_arrive_expect_tx(bar,m*n*sizeof(nv_bfloat16)); 
+  }
+  else mbarrier_arrive(bar); 
+
+
+  mbarrier_wait_parity(bar,0); 
+  uint32_t a_ld_addr = As + (((l%16)*n + 8*(l/16))*sizeof(nv_bfloat16)); 
+  uint32_t a_st_addr = As_out + (((l%8)*m + 8*(l/8))*sizeof(nv_bfloat16)); 
+  wa::ldmatrix_m8n8_x2_trans_b16(ra, a_ld_addr); 
+  wa::stmatrix_m8n8_x2_b16(ra, a_st_addr);
+  tma_fence();
+
+  cp_async_bulk_tensor_2d_store(&a_out_map,0,0,As_out);
+  cp_async_commit_group();
+  cp_async_wait_group<0>(); 
+
+}
+
+int main()
+{
+  NaiveTensor<nv_bfloat16>A({m,n}, Layout::ROW_MAJOR);
+  NaiveTensor<nv_bfloat16>A_out({n,m},Layout::COL_MAJOR); 
+
+  A.allocate(); A_out.allocate(); 
+  A.init_pattern(MODE_ARANGE, DIST_FLOAT_NEG1_1); 
+  A_out.init_pattern(MODE_ZEROS, DIST_FLOAT_NEG1_1); 
+  A.to_device(); A_out.to_device(); 
+
+  CUtensorMap a_map = TmaDescriptor<nv_bfloat16>::create_2d_row_major(A.d_ptr,{m,n},{m,n});
+  CUtensorMap a_out_map = TmaDescriptor<nv_bfloat16>::create_2d_col_major(A_out.d_ptr,{n,m},{n,m});
+
+  NaiveLauncher launcher(grid_size,1,block_size, (2*m*n*sizeof(nv_bfloat16)) + 1024); 
+  launcher.launch(transpose_kernel, a_map, a_out_map);
+  cudaDeviceSynchronize(); 
+  A_out.to_host(); 
+
+  A.pretty_print();
+  A_out.pretty_print();
+}
+
