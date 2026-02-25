@@ -32,6 +32,31 @@ __global__ void transpose_kernel(__grid_constant__ const CUtensorMap a_map,
   uint32_t a_ld_addr = As + (((l%16)*n + 8*(l/16))*sizeof(nv_bfloat16)); 
   uint32_t a_st_addr = As_out + (((l%8)*m + 8*(l/8))*sizeof(nv_bfloat16)); 
   wa::ldmatrix_m8n8_x2_trans_b16(ra, a_ld_addr); 
+  // after ldmatrix
+  uint32_t r0 = ra[0];
+  uint32_t r1 = ra[1];
+
+  // unpack bf16 (2 per 32-bit reg)
+  uint16_t lo0 = r0 & 0xFFFF;
+  uint16_t hi0 = r0 >> 16;
+  uint16_t lo1 = r1 & 0xFFFF;
+  uint16_t hi1 = r1 >> 16;
+
+  // convert to float
+  float f0 = __bfloat162float(*reinterpret_cast<nv_bfloat16*>(&lo0));
+  float f1 = __bfloat162float(*reinterpret_cast<nv_bfloat16*>(&hi0));
+  float f2 = __bfloat162float(*reinterpret_cast<nv_bfloat16*>(&lo1));
+  float f3 = __bfloat162float(*reinterpret_cast<nv_bfloat16*>(&hi1));
+
+  // ordered print
+  for (int i = 0; i < 32; i++) {
+    __syncthreads();
+    if (threadIdx.x == i) {
+      printf("lane %d: %f %f %f %f\n", i, f0, f1, f2, f3);
+    }
+  }
+  __syncthreads();
+
   wa::stmatrix_m8n8_x2_b16(ra, a_st_addr);
   tma_fence();
 
