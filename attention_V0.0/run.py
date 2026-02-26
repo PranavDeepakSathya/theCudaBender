@@ -21,13 +21,15 @@ device = "cuda"
 LQ, D, LK = ext.shape()
 print(f"LQ={LQ}, D={D}, LK={LK}")
 
+# Q: row-major (LQ, D)
 Q = torch.randn((LQ, D), device=device, dtype=torch.bfloat16).contiguous()
 
-K_rm = torch.randn((LK, D), device=device, dtype=torch.bfloat16)
-K = K_rm.t()  # col-major
+# K: row-major (LK, D)
+K = torch.randn((LK, D), device=device, dtype=torch.bfloat16).contiguous()
 
-V = torch.randn((LK, D), device=device, dtype=torch.bfloat16).contiguous()
-
+# V: column-major (LK, D)
+V_rm = torch.randn((D, LK), device=device, dtype=torch.bfloat16)
+V = V_rm.t()  # now (LK, D) with stride(0) == 1
 # correctness
 O = ext.attention(Q, K, V)
 

@@ -16,13 +16,15 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   uint32_t smem = static_cast<uint32_t>(__cvta_generic_to_shared(smem_raw)); 
   uint32_t Qs = smem; 
   uint32_t Ks = smem; //same smem for both, as we will hold Qs in regs throughout the whole thing
-  uint32_t Vs = ks + Cfg::w_K_bytes; 
+  uint32_t Vs = Ks + Cfg::w_K_bytes; 
   uint32_t bar = Vs + Cfg::w_V_bytes; 
   uint32_t rq[4]; 
   uint32_t rk[2];
   float rs[4] = {0.0}; 
   float maxim[2] = {-INFINITY}; //each lane holds the max and rows sum of row id l/4, l/4 + 8
   float row_sum[2] = {0.0};
+  uint32_t rv[2];
+  float ro[4] = {0.0};
 
   int l = threadIdx.x; 
   if (l == 0) mbarrier_init(bar, 32); 
@@ -51,6 +53,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   mbarrier_wait_parity(bar,1); 
   uint32_t Ks_addr = Ks + (((l%8)*Cfg::w_d +(8*(l/8)))*sizeof(nv_bfloat16));
   wa::ldmatrix_m8n8_x2_b16(rk, Ks_addr); 
+
   wa::mma_m16n8k16_row_col_f32_bf16(rs,rq,rk); 
 
   maxim[0] = fmaxf(rs[0], rs[1]);
@@ -93,7 +96,17 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   rp_16[2] = reinterpret_cast<uint32_t&>(pair1);
   rp_16[3] = 0u;
 
-  
+  uint32_t Vs_addr = Vs + (((l%8)*Cfg::w_lk +(8*(l/8)))*sizeof(nv_bfloat16));
+  wa::ldmatrix_m8n8_x2_b16(rv, Vs_addr); 
+  wa::mma_m16n8k16_row_col_f32_bf16(ro,rp_16,rv); 
+  float2* O2 = reinterpret_cast<float2*>(O); 
+  int ldO2 = Cfg::D/2; 
+  float2* v0[2] = {ro[0],ro[1]}; 
+  float2* v1[2] = {ro[2],ro[3]}; 
+  int lane_row = l/4; 
+  int lane_col = (l%4);
+  O2[lane_row*ldO2 + lane_col] = v0; 
+  O2[(lane_row+8)*ldO2 + lane_col] = v1;
 }
 
 

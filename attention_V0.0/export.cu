@@ -28,15 +28,17 @@ torch::Tensor attention(
     TORCH_CHECK(K.dim() == 2, "K must be 2D");
     TORCH_CHECK(V.dim() == 2, "V must be 2D");
 
+    // Layout contracts
     TORCH_CHECK(Q.is_contiguous(), "Q must be row-major");
-    TORCH_CHECK(K.stride(0) == 1, "K must be column-major");
-    TORCH_CHECK(V.is_contiguous(), "V must be row-major");
+    TORCH_CHECK(K.is_contiguous(), "K must be row-major");
+    TORCH_CHECK(V.stride(0) == 1, "V must be column-major");
 
+    // Shape contracts
     TORCH_CHECK(Q.size(0) == Cfg::LQ, "Q shape mismatch");
     TORCH_CHECK(Q.size(1) == Cfg::D,  "Q shape mismatch");
 
-    TORCH_CHECK(K.size(0) == Cfg::D,  "K shape mismatch");
-    TORCH_CHECK(K.size(1) == Cfg::LK, "K shape mismatch");
+    TORCH_CHECK(K.size(0) == Cfg::LK, "K shape mismatch");
+    TORCH_CHECK(K.size(1) == Cfg::D,  "K shape mismatch");
 
     TORCH_CHECK(V.size(0) == Cfg::LK, "V shape mismatch");
     TORCH_CHECK(V.size(1) == Cfg::D,  "V shape mismatch");
@@ -57,6 +59,8 @@ torch::Tensor attention(
 
     float* O_ptr = O.data_ptr<float>();
 
+    // ---- TMA Descriptors ----
+
     CUtensorMap q_map =
         TmaDescriptor<nv_bfloat16>::create_2d_row_major(
             Q_ptr,
@@ -65,18 +69,20 @@ torch::Tensor attention(
         );
 
     CUtensorMap k_map =
-        TmaDescriptor<nv_bfloat16>::create_2d_col_major(
+        TmaDescriptor<nv_bfloat16>::create_2d_row_major(
             K_ptr,
-            {Cfg::D, Cfg::LK},
-            {Cfg::D, Cfg::LK}
+            {Cfg::LK, Cfg::D},
+            {Cfg::LK, Cfg::D}
         );
 
     CUtensorMap v_map =
-        TmaDescriptor<nv_bfloat16>::create_2d_row_major(
+        TmaDescriptor<nv_bfloat16>::create_2d_col_major(
             V_ptr,
             {Cfg::LK, Cfg::D},
             {Cfg::LK, Cfg::D}
         );
+
+    // ---- Launch ----
 
     NaiveLauncher launcher(
         Cfg::grid_size,
