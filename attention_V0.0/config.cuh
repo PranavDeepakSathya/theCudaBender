@@ -15,6 +15,7 @@ struct AttnConfig
 
     static constexpr int w_Q_bytes = w_d*w_lq*sizeof(nv_bfloat16);
     static constexpr int w_K_bytes = w_d*w_lq*sizeof(nv_bfloat16);
+    static constexpr int w_V_bytes = w_d*w_lk*sizeof(nv_bfloat16);
     static constexpr int w_S_bytes = w_lq*w_lk*sizeof(nv_bfloat16);
     static constexpr int w_P_bytes = w_lq*w_lk*sizeof(nv_bfloat16);
     static constexpr int w_O_bytes = w_d*w_lq*sizeof(nv_bfloat16);

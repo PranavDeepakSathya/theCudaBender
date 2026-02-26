@@ -47,7 +47,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   {
     cp_async_bulk_tensor_2d(Ks, &k_map, 0,0, bar);
     cp_async_bulk_tensor_2d(Vs, &v_map, 0,0, bar);
-     mbarrier_arrive_expect_tx(bar, Cfg::w_K_bytes + Cfg::w_V_bytes);
+    mbarrier_arrive_expect_tx(bar, Cfg::w_K_bytes + Cfg::w_V_bytes);
   }
   else mbarrier_arrive(bar); 
   mbarrier_wait_parity(bar,1); 
@@ -88,8 +88,8 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   rp[2] = __expf(rs[2] - maxim[1]) / row_sum[1];
   rp[3] = __expf(rs[3] - maxim[1]) / row_sum[1];
 
-  __nv_bfloat162 pair0 = __floats2bfloat162(rp[0], rp[1]);
-  __nv_bfloat162 pair1 = __floats2bfloat162(rp[2], rp[3]);
+  __nv_bfloat162 pair0 = __float22bfloat162_rn({rp[0], rp[1]});
+  __nv_bfloat162 pair1 = __float22bfloat162_rn({rp[2], rp[3]});
   uint32_t rp_16[4];
   rp_16[0] = reinterpret_cast<uint32_t&>(pair0);
   rp_16[1] = 0u;
@@ -101,8 +101,8 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   wa::mma_m16n8k16_row_col_f32_bf16(ro,rp_16,rv); 
   float2* O2 = reinterpret_cast<float2*>(O); 
   int ldO2 = Cfg::D/2; 
-  float2* v0[2] = {ro[0],ro[1]}; 
-  float2* v1[2] = {ro[2],ro[3]}; 
+  float2 v0 = {ro[0],ro[1]}; 
+  float2 v1 = {ro[2],ro[3]}; 
   int lane_row = l/4; 
   int lane_col = (l%4);
   O2[lane_row*ldO2 + lane_col] = v0; 
