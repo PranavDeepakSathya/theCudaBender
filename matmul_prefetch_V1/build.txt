@@ -1,0 +1,40 @@
+
+=== GPU Detected ===
+NVIDIA GeForce RTX 5090
+
+Using config: 5090_cfg.json
+
+=== Loaded Config ===
+ACC_PER_WARP_M = 4
+ACC_PER_WARP_N = 4
+WARP_K_STAGES = 2
+WARPS_PER_BLOCK_M = 2
+WARPS_PER_BLOCK_N = 2
+BK_STAGES = 4
+GROUP_M = 8
+GROUP_N = 8
+BLOCK_K = 64
+
+=== Compiling ===
+nvcc -O3 --use_fast_math -arch=sm_120 -DACC_PER_WARP_M=4 -DACC_PER_WARP_N=4 -DWARP_K_STAGES=2 -DWARPS_PER_BLOCK_M=2 -DWARPS_PER_BLOCK_N=2 -DBK_STAGES=4 -DGROUP_M=8 -DGROUP_N=8 -DBLOCK_K=64 test.cu -o matmul_bench.out -lcuda -lcudart
+
+=== Running Benchmark ===
+Traceback (most recent call last):
+  File "/root/theCudaBender/matmul_prefetch_V1/test_run_cfg.py", line 56, in <module>
+    subprocess.check_call(["./matmul_bench.out"])
+  File "/venv/main/lib/python3.12/subprocess.py", line 408, in check_call
+    retcode = call(*popenargs, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/subprocess.py", line 391, in call
+    return p.wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/subprocess.py", line 1264, in wait
+    return self._wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/subprocess.py", line 2053, in _wait
+    (pid, sts) = self._try_wait(0)
+                 ^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/subprocess.py", line 2011, in _try_wait
+    (pid, sts) = os.waitpid(self.pid, wait_flags)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
