@@ -3,6 +3,7 @@
 
 #include "../atoms/all.cuh"
 #include "config.cuh"
+#include "smem_allocator.cuh"
 
 namespace ptx = cuda::ptx;
 namespace wa = warp_function;
@@ -31,6 +32,9 @@ __global__ void matmul_kernel(
   uint32_t b_ld_base = ((warp_start_n + (l%8))*Cfg::BK + (8*(l/8)))*sizeof(nv_bfloat16);
   float2* C2 = reinterpret_cast<float2*>(C);
   int ldc2 = Cfg::N/2;
+  uint32_t ra[Cfg::acc_per_warp_m][Cfg::warp_k_stages][4];
+  uint32_t rb[Cfg::acc_per_warp_n][Cfg::warp_k_stages][2];
+  float rc[Cfg::acc_per_warp_m][Cfg::acc_per_warp_n][4] = {0.0};
 
   if (t == 0)
   {
@@ -52,7 +56,7 @@ __global__ void matmul_kernel(
     }
     else 
     {
-      mbarrier_arrive(smem.full(stage))
+      mbarrier_arrive(smem.full(stage));
     }
   };
 
@@ -116,8 +120,80 @@ __global__ void matmul_kernel(
     }
   };
 
+  // outer_prologue
+  #pragma unroll
+  for (int bk_idx = 0; bk_idx < Cfg::bk_stages-1; bk_idx++)
+  {
+
+    if(w ==0)
+    { 
+    TMA_load_A_B(bk_idx, bk_idx);
+    }
+  }
+  int stage = 0; 
+  int phase = 0;
+  #pragma unroll
+  for (int bk_idx = 0; bk_idx < Cfg::block_k_iters-(Cfg::bk_stages-1); bk_idx++)
+  {
+    __syncthreads();
+    const int prefetch_bk_idx = bk_idx + (Cfg::bk_stages-1);
+    if (w==0)
+    { 
+    TMA_load_A_B(prefetch_bk_idx, prefetch_bk_idx % Cfg::bk_stages); 
+    }
+    mbarrier_wait_parity(smem.full(stage), phase); //wait on the current outer load 
+    for (int wk_idx=0; wk_idx < Cfg::warp_k_stages-1;wk_idx++)//inner prologue
+    {
+      ldm_A_k(ra,wk_idx,stage,wk_idx);
+      ldm_B_k(rb,wk_idx,stage,wk_idx);
+    }
+    #pragma unroll
+    for (int wk_idx = 0; wk_idx < (Cfg::BK/Cfg::mma_k) - (Cfg::warp_k_stages -1); wk_idx++)
+    {
+      const int prefetch_wk_idx = wk_idx + (Cfg::warp_k_stages-1);
+      ldm_A_k(ra, prefetch_wk_idx, stage, prefetch_wk_idx % Cfg::warp_k_stages); 
+      ldm_B_k(rb, prefetch_wk_idx, stage, prefetch_wk_idx % Cfg::warp_k_stages); 
+      mma_k(rc,ra,rb,wk_idx,wk_idx % Cfg::warp_k_stages);
+    }
+    #pragma unroll
+    for (int wk_idx = (Cfg::BK/Cfg::mma_k) - (Cfg::warp_k_stages -1); wk_idx < (Cfg::BK/Cfg::mma_k); wk_idx++)
+    {
+      mma_k(rc,ra,rb,wk_idx, wk_idx % Cfg::warp_k_stages);
+    }
+    stage = (stage + 1) % Cfg::bk_stages;
+    if (stage == 0) phase ^= 1;
+
+  }
+  #pragma unroll
+  for (int bk_idx = Cfg::block_k_iters-(Cfg::bk_stages-1); bk_idx < Cfg::block_k_iters; bk_idx++)
+  {
+    __syncthreads();
+    mbarrier_wait_parity(smem.full(stage), phase); //wait on the current outer load 
+    #pragma unroll
+    for (int wk_idx=0; wk_idx < Cfg::warp_k_stages-1;wk_idx++)//inner prologue
+    {
+      ldm_A_k(ra,wk_idx,stage,wk_idx);
+      ldm_B_k(rb,wk_idx,stage,wk_idx);
+    }
+    #pragma unroll
+    for (int wk_idx = 0; wk_idx < (Cfg::BK/Cfg::mma_k) - (Cfg::warp_k_stages -1); wk_idx++)
+    {
+      const int prefetch_wk_idx = wk_idx + (Cfg::warp_k_stages-1);
+      ldm_A_k(ra, prefetch_wk_idx, stage, prefetch_wk_idx % Cfg::warp_k_stages); 
+      ldm_B_k(rb, prefetch_wk_idx, stage, prefetch_wk_idx % Cfg::warp_k_stages); 
+      mma_k(rc,ra,rb,wk_idx,wk_idx % Cfg::warp_k_stages);
+    }
+    #pragma unroll
+    for (int wk_idx = (Cfg::BK/Cfg::mma_k) - (Cfg::warp_k_stages -1); wk_idx < (Cfg::BK/Cfg::mma_k); wk_idx++)
+    {
+      mma_k(rc,ra,rb,wk_idx, wk_idx % Cfg::warp_k_stages);
+    }
+    stage = (stage + 1) % Cfg::bk_stages;
+    if (stage == 0) phase ^= 1;
+  }
   
 
+  store_c(rc);
 }
 
 template <class Cfg>

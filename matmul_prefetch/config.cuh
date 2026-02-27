@@ -11,8 +11,8 @@
 #define ACC_PER_WARP_N 4
 #endif
 
-#ifndef warp_k_stages
-#define warp_k_stages 4
+#ifndef WARP_K_STAGES 
+#define WARP_K_STAGES 2
 #endif
 
 #ifndef WARPS_PER_BLOCK_M
@@ -56,20 +56,21 @@ struct GemmConfig
 
   static constexpr int acc_per_warp_m = ACC_PER_WARP_M;
   static constexpr int acc_per_warp_n = ACC_PER_WARP_N;
-  static constexpr int warp_k_stages   = warp_k_stages;
+  static constexpr int warp_k_stages   = WARP_K_STAGES;
 
   static constexpr int warps_per_block_m = WARPS_PER_BLOCK_M;
   static constexpr int warps_per_block_n = WARPS_PER_BLOCK_N;
 
   static_assert(is_pow2(acc_per_warp_m));
   static_assert(is_pow2(acc_per_warp_n));
-  static_assert(is_pow2(warp_k_stages));
   static_assert(is_pow2(warps_per_block_m));
   static_assert(is_pow2(warps_per_block_n));
 
   static constexpr int WM = mma_m * acc_per_warp_m;
   static constexpr int WN = mma_n * acc_per_warp_n;
   static constexpr int BK = BLOCK_K;
+    static_assert(is_pow2(BK));
+  static_assert(warp_k_stages <= BK/mma_k);
 
   static constexpr int BM = WM * warps_per_block_m;
   static constexpr int BN = WN * warps_per_block_n;
@@ -94,7 +95,7 @@ struct GemmConfig
   static constexpr uint32_t Bs_bytes =
       BK * BN * sizeof(nv_bfloat16);
 
-  static constexpr uint32_t smem_overhead = 1024;
+  static constexpr uint32_t smem_overhead = 16*bk_stages;
 
   static constexpr uint32_t shared_bytes =
       ((As_bytes + Bs_bytes) * bk_stages) + smem_overhead;
@@ -107,6 +108,8 @@ struct GemmConfig
 
   static constexpr int GM = M / BM;
   static constexpr int GN = N / BN;
+
+  
 
   static constexpr int grid_size = GM * GN;
 
@@ -126,24 +129,16 @@ struct GemmConfig
   static constexpr uint32_t ld_bytes =
       BK * sizeof(nv_bfloat16);
 
-  static_assert(ld_bytes <= 128);
-
   static constexpr CUtensorMapSwizzle swizzle_mode =
       (ld_bytes == 32)  ? CU_TENSOR_MAP_SWIZZLE_32B  :
       (ld_bytes == 64)  ? CU_TENSOR_MAP_SWIZZLE_64B  :
       (ld_bytes == 128) ? CU_TENSOR_MAP_SWIZZLE_128B :
                           CU_TENSOR_MAP_SWIZZLE_NONE;
 
-  static_assert(swizzle_mode != CU_TENSOR_MAP_SWIZZLE_NONE);
 
-  static constexpr int m_base  = 4;
-  static constexpr int s_shift = 3;
-
-  static constexpr int b_bits =
-      (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_32B)  ? 1 :
-      (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_64B)  ? 2 :
-      (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_128B) ? 3 :
-                                                     0;
-
-  static_assert(b_bits != 0);
+  static constexpr int swizzle_num =
+      (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_32B)  ? 128  :
+      (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_64B)  ? 384  :
+      (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_128B) ? 896 :
+                                                    0;
 };
