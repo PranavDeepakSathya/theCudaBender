@@ -147,13 +147,14 @@ __global__ void matmul_kernel(
     int bk_consume_stage = bk_consume_idx % Cfg::bk_stages; 
     int bk_consume_cycle = bk_consume_idx / Cfg:: bk_stages; 
     int wait_parity = bk_consume_cycle % 2;
-
+    __syncthreads();
     if (wk_load_idx == 0)
     { 
       mbarrier_wait_parity(smem.full(bk_consume_stage),wait_parity);
       if (w == 0) TMA_load_A_B(bk_load_idx,bk_load_stage);
       
     }
+
     ldm_A_k(ra,wk_load_idx,bk_consume_stage,wk_load_stage);
     ldm_B_k(rb,wk_load_idx,bk_consume_stage,wk_load_stage);
     mma_k(rc,ra,rb,wk_compute_idx,wk_compute_stage);
@@ -174,7 +175,7 @@ __global__ void matmul_kernel(
     int bk_consume_stage = bk_consume_idx % Cfg::bk_stages; 
     int bk_consume_cycle = bk_consume_idx / Cfg:: bk_stages; 
     int wait_parity = bk_consume_cycle % 2;
-
+    __syncthreads();
     if (wk_load_idx == 0)
     {
       mbarrier_wait_parity(smem.full(bk_consume_stage),wait_parity);
@@ -185,35 +186,35 @@ __global__ void matmul_kernel(
     
   }
   
-  static constexpr int final_start = num_full_iters + num_epilogue_iters;
-  static constexpr int drain_iters = Cfg::warp_k_iters - (Cfg::warp_k_stages-1);
+  static constexpr int num_second_ep_start = num_full_iters + num_epilogue_iters;
+  static constexpr int num_second_ep_iters = Cfg::warp_k_iters - (Cfg::warp_k_stages-1);
+
   #pragma unroll
-  for (int j = final_start; j < final_start + drain_iters; j++)
+  for (int j = num_second_ep_start; j < num_second_ep_start + num_second_ep_iters; j++)
   {
 
     int wk_compute_idx = j % Cfg::warp_k_iters;
     int wk_compute_stage = j % Cfg::warp_k_stages;
     int wk_load_idx = (j + (Cfg::warp_k_stages-1)) % Cfg::warp_k_iters;
     int wk_load_stage = (j + (Cfg::warp_k_stages-1)) % Cfg::warp_k_stages; 
-
-    int bk_consume_idx = ((j + (Cfg::warp_k_stages-1))/Cfg::warp_k_iters);
-    int bk_consume_stage = bk_consume_idx % Cfg::bk_stages; 
+    int bk_consume_stage = ((j + (Cfg::warp_k_stages-1))/Cfg::warp_k_iters) % Cfg::bk_stages; 
 
     ldm_A_k(ra,wk_load_idx,bk_consume_stage,wk_load_stage);
     ldm_B_k(rb,wk_load_idx,bk_consume_stage,wk_load_stage);
     mma_k(rc,ra,rb,wk_compute_idx,wk_compute_stage);
-    
   }
 
-  static constexpr int final_final_start = final_start + drain_iters;
-  static constexpr int last_mma_iters = Cfg::warp_k_iters - (drain_iters);
+  static constexpr int num_third_ep_start = num_second_ep_start + num_second_ep_iters;
+  static constexpr int num_third_ep_iters = Cfg::warp_k_stages - 1; 
   #pragma unroll
-  for (int j = final_final_start; j < final_final_start + last_mma_iters; j++)
+  for (int j = num_third_ep_start; j < num_third_ep_start + num_third_ep_iters; j++)
   {
+
     int wk_compute_idx = j % Cfg::warp_k_iters;
     int wk_compute_stage = j % Cfg::warp_k_stages;
     mma_k(rc,ra,rb,wk_compute_idx,wk_compute_stage);
   }
+
 
   store_c(rc);
 }

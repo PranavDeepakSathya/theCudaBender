@@ -96,3 +96,6 @@ W B1 wait_p1 (cur_p0)
 0063 |                    | I2:b0      | b1→C1     
 0064 |                    | I3:b1      | b0→C2     
 0065 |                    |            | b1→C3     
+N_total_jobs64
+JOBS_COMPLETED 64
+JOBS_LOADED 64

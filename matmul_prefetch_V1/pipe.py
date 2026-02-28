@@ -39,6 +39,8 @@ N_outer_jobs = 1024//64
 N_outer_stages = 2
 N_inner_jobs = 64//16
 N_inner_stages = 2
+jobs_completed = 0
+jobs_loaded = 0
 
 O_JOB = OuterJob(N_outer_jobs, N_outer_stages)
 I_JOB = InnerJob(N_inner_jobs, N_inner_stages)
@@ -60,6 +62,7 @@ for q in range(N_inner_stages-1):
     print(O_JOB.wait_parity(i%N_outer_stages,0))
   #the first wait for the first set of inner loads will be done here. 
   inner_load_str = I_JOB.load_into(q, q%N_inner_stages)
+  jobs_loaded += 1
   print_step(i,outer_str, inner_load_str, inner_compute_str)
   i+=1
     
@@ -91,6 +94,8 @@ for j in range(NUM_FULL_ITERS):
   
   inner_load_str = I_JOB.load_into(inner_load_idx, inner_load_stage)
   inner_compute_str = I_JOB.compute(inner_compute_idx, inner_compute_stage)
+  jobs_completed += 1
+  jobs_loaded += 1
                       
   print_step(i,outer_str, inner_load_str, inner_compute_str)
   i+=1
@@ -119,8 +124,53 @@ for j in range(NUM_FULL_ITERS, NUM_FULL_ITERS + NUM_EPILOGUE_ITERS):
   
   inner_load_str = I_JOB.load_into(inner_load_idx, inner_load_stage)
   inner_compute_str = I_JOB.compute(inner_compute_idx, inner_compute_stage)
+  jobs_completed += 1
+  jobs_loaded += 1
                       
   print_step(i,outer_str, inner_load_str, inner_compute_str)
   i+=1
-
   
+  
+
+FIRST_EP_START = NUM_FULL_ITERS + NUM_EPILOGUE_ITERS
+NUM_FIRST_EP_ITERS = N_inner_jobs - (N_inner_stages-1)
+
+for j in range(FIRST_EP_START, FIRST_EP_START + NUM_FIRST_EP_ITERS): 
+  if (j > 0) and (j%N_inner_jobs == 0) : print ("-------------------------------------------------------------")
+  outer_str, inner_load_str, inner_compute_str = None,None,None
+  
+  inner_compute_idx = j % N_inner_jobs
+  inner_compute_stage = j % N_inner_stages
+  inner_load_idx = (j + (N_inner_stages-1)) % N_inner_jobs
+  inner_load_stage = (j + (N_inner_stages-1)) % N_inner_stages 
+
+  outer_consume_idx = ((j + (N_inner_stages-1))//N_inner_jobs) 
+  outer_consume_stage = outer_consume_idx % N_outer_stages
+
+    
+  inner_load_str = I_JOB.load_into(inner_load_idx, inner_load_stage)
+  inner_compute_str = I_JOB.compute(inner_compute_idx, inner_compute_stage)
+  jobs_completed += 1
+  jobs_loaded += 1
+  print_step(i,outer_str, inner_load_str, inner_compute_str)
+  i+=1
+
+LAST_EP_START = NUM_FIRST_EP_ITERS + FIRST_EP_START
+NUM_LAST_EP_ITERS = N_inner_stages-1
+
+for j in range(LAST_EP_START, LAST_EP_START + NUM_LAST_EP_ITERS): 
+  if (j > 0) and (j%N_inner_jobs == 0) : print ("-------------------------------------------------------------")
+  outer_str, inner_load_str, inner_compute_str = None,None,None
+  
+  inner_compute_idx = j % N_inner_jobs
+  inner_compute_stage = j % N_inner_stages
+
+  inner_compute_str = I_JOB.compute(inner_compute_idx, inner_compute_stage)
+  jobs_completed += 1
+  print_step(i,outer_str, inner_load_str, inner_compute_str)
+  i+=1
+
+
+print(f"N_total_jobs{N_outer_jobs*N_inner_jobs}")
+print(f"JOBS_COMPLETED {jobs_completed}")
+print(f"JOBS_LOADED {jobs_loaded}")
