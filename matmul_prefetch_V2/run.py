@@ -149,10 +149,10 @@ print("\n=== Benchmark (Triton do_bench) ===")
 def run():
     ext.gemm(A, B)
 
-ms = triton.testing.do_bench(run)
+ms = triton.testing.do_bench(run,return_mode="median")
 
 flops = 2.0 * M * N * K
 tflops = flops / (ms * 1e-3) / 1e12
 
-print(f"Avg time: {ms:.4f} ms")
+print(f"median time: {ms:.4f} ms")
 print(f"TFLOP/s : {tflops:.2f}")
