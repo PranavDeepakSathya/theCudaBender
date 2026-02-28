@@ -150,10 +150,12 @@ __global__ void matmul_kernel(
     __syncthreads();
     if (wk_load_idx == 0)
     { 
-      mbarrier_wait_parity(smem.full(bk_consume_stage),wait_parity);
-      if (w == 0) TMA_load_A_B(bk_load_idx,bk_load_stage);
       
+      if (w == 0) TMA_load_A_B(bk_load_idx,bk_load_stage);
+      mbarrier_wait_parity(smem.full(bk_consume_stage),wait_parity);
+      __syncthreads();
     }
+
 
     ldm_A_k(ra,wk_load_idx,bk_consume_stage,wk_load_stage);
     ldm_B_k(rb,wk_load_idx,bk_consume_stage,wk_load_stage);
@@ -179,6 +181,7 @@ __global__ void matmul_kernel(
     if (wk_load_idx == 0)
     {
       mbarrier_wait_parity(smem.full(bk_consume_stage),wait_parity);
+      __syncthreads();
     }
     ldm_A_k(ra,wk_load_idx,bk_consume_stage,wk_load_stage);
     ldm_B_k(rb,wk_load_idx,bk_consume_stage,wk_load_stage);
@@ -214,8 +217,7 @@ __global__ void matmul_kernel(
     int wk_compute_stage = j % Cfg::warp_k_stages;
     mma_k(rc,ra,rb,wk_compute_idx,wk_compute_stage);
   }
-
-
+  __syncthreads(); //syncthreads after store is ABSOLUTELY NEEDED
   store_c(rc);
 }
 

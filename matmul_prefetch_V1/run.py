@@ -86,7 +86,7 @@ diff = (C.float() - C_ref).abs().flatten()
 # ---- Stable stats (no full sort) ----
 
 numel = diff.numel()
-sample_size = min(1_000_000, numel)
+sample_size = min(8192*8192, numel)
 
 if sample_size < numel:
     idx = torch.randint(0, numel, (sample_size,), device=device)

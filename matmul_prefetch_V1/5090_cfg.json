@@ -5,7 +5,7 @@
   "WARPS_PER_BLOCK_M": 2,
   "WARPS_PER_BLOCK_N": 2,
   "BK_STAGES": 2,
-  "GROUP_M":8,
+  "GROUP_M":4,
   "GROUP_N":8,
   "BLOCK_K":64
   
