@@ -3,7 +3,7 @@
   "ACC_PER_WARP_N": 4,
   "WARP_K_STAGES": 2,
   "WARPS_PER_BLOCK_M": 2,
-  "WARPS_PER_BLOCK_N": 4,
+  "WARPS_PER_BLOCK_N": 2,
   "BK_STAGES": 2,
   "GROUP_M":8,
   "GROUP_N":8,
