@@ -67,7 +67,7 @@ torch::Tensor gemm(torch::Tensor A, torch::Tensor B)
             A_ptr,
             {Cfg::M, Cfg::K},
             {Cfg::BM, Cfg::BK},
-            Cfg::swizzle_mode;
+            Cfg::swizzle_mode`
         );
 
     CUtensorMap b_map =
@@ -75,7 +75,7 @@ torch::Tensor gemm(torch::Tensor A, torch::Tensor B)
             B_ptr,
             {Cfg::K, Cfg::N},
             {Cfg::BK, Cfg::BN},
-            Cfg::swizzle_mode;
+            Cfg::swizzle_mode
         );
 
     // ------------------------------------------------------------
