@@ -212,8 +212,8 @@ __global__ void matmul_kernel(
   }
 
   static constexpr int bk_idx = Cfg::block_k_iters - 1; //epilogue 
-  int bk_cons_stage = bk_idx % Cfg::bk_stages; 
-  int bk_base = bk_idx*Cfg::warp_k_iters;
+  static constexpr int bk_cons_stage = bk_idx % Cfg::bk_stages; 
+  static constexpr int bk_base = bk_idx*Cfg::warp_k_iters;
 
   for (int wk_idx = 0; wk_idx < wk_iters; wk_idx++)
   {
