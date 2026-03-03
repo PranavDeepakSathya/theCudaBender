@@ -1,0 +1,3 @@
+FLOPs per iteration     : 524288
+Total FLOPs             : 524288
+FLOPs per cycle         : 114.423396

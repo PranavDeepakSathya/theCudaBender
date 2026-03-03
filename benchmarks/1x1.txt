@@ -1,0 +1,4 @@
+
+Total clock cycles      : 102436170845
+Iterations              : 100000000
+Cycles per iteration    : 1024.361708450000
