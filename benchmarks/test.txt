@@ -1,3 +1,4 @@
-FLOPs per iteration     : 524288
-Total FLOPs             : 524288
-FLOPs per cycle         : 114.423396
+FLOPs per cycle  : 320.249217
+Bytes per cycle  : 1.876460
+FLOPs/Bytes per cycle: 170.666667
+mma/ldmatrix: 16.000000

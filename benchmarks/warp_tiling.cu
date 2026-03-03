@@ -5,14 +5,14 @@ static constexpr int mma_m = 16;
 static constexpr int mma_n = 8;
 static constexpr int mma_k = 16; 
 
-static constexpr int acc_per_warp_m = 4; 
-static constexpr int acc_per_warp_n = 8; 
+static constexpr int acc_per_warp_m =8; 
+static constexpr int acc_per_warp_n =8; 
 
 static constexpr int WM = mma_m * acc_per_warp_m;
 static constexpr int WN = mma_n * acc_per_warp_n;
 
-static constexpr int warps_per_block_m = 1;
-static constexpr int warps_per_block_n = 1;
+static constexpr int warps_per_block_m = 2;
+static constexpr int warps_per_block_n = 2;
 
 static constexpr int BM = WM*warps_per_block_m; 
 static constexpr int BN = WN*warps_per_block_n;
@@ -218,22 +218,35 @@ int main()
                cudaMemcpyDeviceToHost);
 
     double flops_per_iter =
-        2.0 *
-        static_cast<double>(BM) *
-        static_cast<double>(BN) *
-        static_cast<double>(BK);
+    2.0 *
+    static_cast<double>(BM) *
+    static_cast<double>(BN) *
+    static_cast<double>(BK);
+
+    double bytes_per_iter =
+        static_cast<double>(BK) *
+        static_cast<double>(BM + BN);
 
     double total_flops =
         flops_per_iter *
+        static_cast<double>(n_bench_iters);
+
+    double total_bytes =
+        bytes_per_iter *
         static_cast<double>(n_bench_iters);
 
     double flops_per_cycle =
         total_flops /
         static_cast<double>(h_clock);
 
-    printf("FLOPs per iteration     : %.0f\n", flops_per_iter);
-    printf("Total FLOPs             : %.0f\n", total_flops);
-    printf("FLOPs per cycle         : %.6f\n", flops_per_cycle);
+    double bytes_per_cycle =
+        total_bytes /
+        static_cast<double>(h_clock);
+
+    printf("FLOPs per cycle  : %.6f\n", flops_per_cycle);
+    printf("Bytes per cycle  : %.6f\n", bytes_per_cycle);
+    printf("FLOPs/Bytes per cycle: %.6f\n",flops_per_cycle/bytes_per_cycle);
+    printf("mma/ldmatrix: %.6f\n", (double)warps_per_block_m*warps_per_block_n*((acc_per_warp_m*acc_per_warp_n)/(acc_per_warp_m+acc_per_warp_n)));
     
     cudaFree(d_clock);
 
