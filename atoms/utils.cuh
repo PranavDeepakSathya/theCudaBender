@@ -55,10 +55,7 @@ __device__ __forceinline__ bool elect_sync(unsigned int member_mask) {
 
 __device__ inline bool is_elected()
 {
-    unsigned int tid = threadIdx.x;
-    unsigned int warp_id = tid / 32;
-    unsigned int uniform_warp_id = __shfl_sync(0xFFFFFFFF, warp_id, 0); // Broadcast from lane 0.
-    return (uniform_warp_id == 0 && elect_sync(0xFFFFFFFF)); // Elect a leader thread among warp 0.
+    return (threadIdx.x & 31) == 0;  
 }
 
 template<int Align>
