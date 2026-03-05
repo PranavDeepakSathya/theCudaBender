@@ -87,26 +87,30 @@ __global__ void matmul_kernel(
 
   auto ldm_A_k = [&](uint32_t ra[Cfg::warp_k_stages][Cfg::acc_per_warp_m][4], int k, int stage, int wk_stage)
   {
-    if (is_elected()) prof.start(TAG_LDMATRIX);
+    
     #pragma unroll
     for (int m = 0; m < Cfg::acc_per_warp_m; m++)
     {
       uint32_t a_ld_addr = smem.A(stage) + compact_swizzle<Cfg::swizzle_num>(a_ld_base + ((m*Cfg::mma_m*Cfg::BK) + (k*Cfg::mma_k))*sizeof(nv_bfloat16));
+      if (is_elected()) prof.start(TAG_LDMATRIX);
       wa::ldmatrix_m8n8_x4_b16(ra[wk_stage][m], a_ld_addr);
+      if(is_elected()) prof.stop(); 
     }
-    if(is_elected()) prof.stop(); 
+    
   };
 
   auto ldm_B_k = [&](uint32_t rb[Cfg::warp_k_stages][Cfg::acc_per_warp_n][2], int k, int stage, int wk_stage)
   {
-    if (is_elected()) prof.start(TAG_LDMATRIX);
+    
     #pragma unroll 
     for (int n = 0; n < Cfg:: acc_per_warp_n/2; n++)
     {
       uint32_t b_ld_addr = smem.B(stage) + compact_swizzle<Cfg::swizzle_num>(b_ld_base + ((2*n*Cfg::mma_n*Cfg::BK) + (k*Cfg::mma_k))*sizeof(nv_bfloat16));
+      if (is_elected()) prof.start(TAG_LDMATRIX);
       wa::ldmatrix_m8n8_x4_b16(rb[wk_stage][2*n], b_ld_addr);
+      if(is_elected()) prof.stop(); 
     }
-    if(is_elected()) prof.stop(); 
+    
   };  
 
   auto mma_k = [&](float rc[Cfg::acc_per_warp_m][Cfg::acc_per_warp_n][4],
@@ -114,20 +118,22 @@ __global__ void matmul_kernel(
                   uint32_t rb[Cfg::warp_k_stages][Cfg::acc_per_warp_n][2],
                   int k,int wk_stage)
   {
-    if (is_elected()) prof.start(TAG_MMA);
+    
     #pragma unroll
     for (int m = 0; m < Cfg::acc_per_warp_m; m++)
     {
       #pragma unroll
       for (int n = 0; n < Cfg::acc_per_warp_n; n++)
       {
+        if (is_elected()) prof.start(TAG_MMA);
         wa::mma_m16n8k16_row_col_f32_bf16(
             rc[m][n],
             ra[wk_stage][m],
             rb[wk_stage][n]);
+        if(is_elected()) prof.stop(); 
       }
     }
-    if(is_elected()) prof.stop(); 
+
   };
 
 
