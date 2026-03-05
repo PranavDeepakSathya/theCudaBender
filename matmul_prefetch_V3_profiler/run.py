@@ -97,10 +97,10 @@ for stream_id, row in enumerate(prof):
         start = int(row[1 + i*4 + 2])
         dur   = int(row[1 + i*4 + 3])
 
-        WARPS_PER_BLOCK = cfg["WARPS_PER_BLOCK_M"] * cfg["WARPS_PER_BLOCK_N"]
+        threads_per_block = cfg["WARPS_PER_BLOCK_M"] * cfg["WARPS_PER_BLOCK_N"] * 32
 
-        warp = stream_id % WARPS_PER_BLOCK
-        block = stream_id // WARPS_PER_BLOCK
+        thread = stream_id % threads_per_block
+        block = stream_id // threads_per_block
 
         events.append(dict(
             name=TAGS[tag],
@@ -108,10 +108,10 @@ for stream_id, row in enumerate(prof):
             ts=start,
             dur=dur,
             pid=int(sm_id),          # SM lane
-            tid=int(warp),           # warp lane
+            tid=int(thread),           # warp lane
             args={
                 "block": int(block),
-                "warp": int(warp),
+                "warp": int(thread // 32),
                 "sm": int(sm_id),
             }
         ))

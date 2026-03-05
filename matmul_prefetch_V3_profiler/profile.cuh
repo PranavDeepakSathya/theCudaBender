@@ -22,9 +22,9 @@ struct Profiler {
   int cnt_;
 
   __device__ inline
-  void init(int num_entries, int64_t* base_ptr, int warp_stream_id)
+  void init(int num_entries, int64_t* base_ptr, int thread_stream_id)
   {
-    data_ptr_ = base_ptr + warp_stream_id * (1 + num_entries * 4);
+    data_ptr_ = base_ptr + thread_stream_id * (1 + num_entries * 4);
 
     asm volatile("mov.u32 %0, %smid;" : "=r"(sm_id_));
 

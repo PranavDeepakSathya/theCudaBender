@@ -15,11 +15,11 @@ using Cfg = GemmConfig;
 // profiler constants
 // ------------------------------------------------------------
 
-constexpr int WARPS_PER_BLOCK =
-    Cfg::warps_per_block_m * Cfg::warps_per_block_n;
+constexpr int THREADS_PER_BLOCK =
+    Cfg::block_size;
 
 constexpr int NUM_STREAMS =
-    Cfg::grid_size * WARPS_PER_BLOCK;
+    Cfg::grid_size * THREADS_PER_BLOCK;
 
 constexpr int NUM_PROF_EVENTS = 20000;
 
