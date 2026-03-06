@@ -27,6 +27,12 @@ struct AttnConfig
   static constexpr uint32_t Qs_bytes = block_L_q*D*sizeof(nv_bfloat16); 
   static constexpr uint32_t Vs_bytes = block_L_kv*D*sizeof(nv_bfloat16); 
 
-
+  static constexpr uint32_t shared_bytes = Qs_bytes + Ks_bytes + Vs_bytes + 1024;
+  static constexpr int grid_size = L_q/block_L_q;
+  static_assert(D % mma_k == 0);
+  static_assert(warp_L_q % mma_m == 0);
+  static_assert(warp_L_kv % mma_n == 0);
+  static_assert(block_L_q % warp_L_q == 0);
+  static_assert(block_L_kv % warp_L_kv == 0);
 
 };

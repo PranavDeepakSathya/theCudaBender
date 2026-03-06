@@ -100,7 +100,7 @@ torch::Tensor attention(
 
 std::vector<int64_t> shape()
 {
-    return {Cfg::LQ, Cfg::D, Cfg::LK};
+  return {Cfg::L_q, Cfg::D, Cfg::L_kv};
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
