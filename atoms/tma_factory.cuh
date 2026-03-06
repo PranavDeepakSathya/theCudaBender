@@ -86,6 +86,49 @@ public:
         return create_raw(global_address, 2, g_dims, g_strides, b_dims, e_strides, swizzle_mode, CU_TENSOR_MAP_INTERLEAVE_NONE, l2_promo);
     }
 
+    template <int Rank>
+    static CUtensorMap create_with_layout(
+        T* global_address,
+        const std::array<uint64_t, Rank>& logical_dims,
+        const std::array<uint32_t, Rank>& box_dims,
+        const std::array<int, Rank>& layout, // fastest → slowest axis indices
+        CUtensorMapSwizzle swizzle = CU_TENSOR_MAP_SWIZZLE_NONE,
+        CUtensorMapInterleave interleave = CU_TENSOR_MAP_INTERLEAVE_NONE,
+        CUtensorMapL2promotion l2_promo = CU_TENSOR_MAP_L2_PROMOTION_NONE)
+    {
+        uint64_t g_dims[Rank];
+        uint64_t g_strides[Rank - 1];
+        uint32_t b_dims[Rank];
+        uint32_t e_strides[Rank];
+
+        // reorder dims according to layout
+        for (int i = 0; i < Rank; i++) {
+            g_dims[i] = logical_dims[layout[i]];
+            b_dims[i] = box_dims[layout[i]];
+            e_strides[i] = 1;
+        }
+
+        // compute strides (bytes)
+        uint64_t stride = sizeof(T);
+
+        for (int i = 0; i < Rank - 1; i++) {
+            stride *= g_dims[i];
+            g_strides[i] = stride;
+        }
+
+        return create_raw(
+            global_address,
+            Rank,
+            g_dims,
+            g_strides,
+            b_dims,
+            e_strides,
+            swizzle,
+            interleave,
+            l2_promo
+        );
+    }
+
     // ----------------------------------------------------------------
     // 3. The "Raw" Method (Full Control)
     // ----------------------------------------------------------------

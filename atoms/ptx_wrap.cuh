@@ -112,6 +112,41 @@ __device__ inline void cp_async_bulk_tensor_2d_store(
     : "memory"
   );
 }
+
+__device__ inline void cp_async_bulk_tensor_3d(
+    uint32_t dst_smem_addr,
+    const void* tmap_ptr,
+    int x, int y, int z,
+    uint32_t mbarrier_addr
+) {
+  asm volatile(
+    "cp.async.bulk.tensor.3d.shared::cta.global.tile.mbarrier::complete_tx::bytes "
+    "[%0], [%1, {%2, %3, %4}], [%5];\n"
+    :
+    : "r"(dst_smem_addr),
+      "l"(tmap_ptr),
+      "r"(x), "r"(y), "r"(z),
+      "r"(mbarrier_addr)
+    : "memory"
+  );
+}
+__device__ inline void cp_async_bulk_tensor_3d_store(
+    const void* tmap_ptr,
+    int x, int y, int z,
+    uint32_t src_smem_addr
+) {
+  asm volatile(
+    "cp.async.bulk.tensor.3d.global.shared::cta.tile.bulk_group "
+    "[%0, {%1, %2, %3}], [%4];\n"
+    :
+    : "l"(tmap_ptr),
+      "r"(x), "r"(y), "r"(z),
+      "r"(src_smem_addr)
+    : "memory"
+  );
+}
+
+
 __device__ inline void cp_async_commit_group() {
   asm volatile(
     "cp.async.commit_group;\n"
