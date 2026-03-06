@@ -1,6 +1,7 @@
 import torch
 import time
 from torch.utils.cpp_extension import load
+import math
 
 ext = load(
     name="attention_warp",
@@ -47,7 +48,7 @@ O = ext.attention(Q, K, V)
 # Reference
 # -----------------------------
 
-S = Q.float() @ K.float().T
+S = (Q.float() @ K.float().T)/ math.sqrt(D)
 P = torch.softmax(S, dim=1)
 O_ref = P @ V.float()
 
@@ -72,3 +73,16 @@ torch.cuda.synchronize()
 t1 = time.time()
 
 print("Avg us:", (t1 - t0) * 1e6 / iters)
+
+for seed in range(10):
+    torch.manual_seed(seed)
+    Q = torch.randn((LQ,D), device="cuda", dtype=torch.bfloat16).contiguous()
+    K = torch.randn((LK,D), device="cuda", dtype=torch.bfloat16).contiguous()
+    V = torch.randn((D,LK), device="cuda", dtype=torch.bfloat16).t()
+
+    O = ext.attention(Q,K,V)
+    S = (Q.float() @ K.float().T)/ math.sqrt(D)
+    P = torch.softmax(S, dim=1)
+    O_ref = P @ V.float()
+
+    print(seed, (O-O_ref).abs().max().item())

@@ -130,10 +130,10 @@ void pack_p_frag(
       const float* s = s_frag[lq][lkv];
       uint32_t* p = p_frag_packed[lkv][lq];
 
-      nv_bfloat162 p0 = __float22bfloat162_rn(s[0], s[1]);
-      nv_bfloat162 p1 = __float22bfloat162_rn(s[2], s[3]);
-      nv_bfloat162 p2 = __float22bfloat162_rn(s[4], s[5]);
-      nv_bfloat162 p3 = __float22bfloat162_rn(s[6], s[7]);
+      nv_bfloat162 p0 = __float22bfloat162_rn({s[0], s[1]});
+      nv_bfloat162 p1 = __float22bfloat162_rn({s[2], s[3]});
+      nv_bfloat162 p2 = __float22bfloat162_rn({s[4], s[5]});
+      nv_bfloat162 p3 = __float22bfloat162_rn({s[6], s[7]});
 
       p[0] = reinterpret_cast<uint32_t&>(p0);
       p[1] = reinterpret_cast<uint32_t&>(p1);
@@ -174,8 +174,8 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   __syncthreads();
 
 
-  int block_start_lq = b*block_L_q; 
-  int warp_start_lq = w*warp_L_q; 
+  int block_start_lq = b*Cfg::block_L_q; 
+  int warp_start_lq = w*Cfg::warp_L_q; 
 
   uint32_t q_frag[Cfg::D/Cfg::mma_k][Cfg::warp_L_q/Cfg::mma_m][4]; 
   uint32_t kt_frag[Cfg::D/Cfg::mma_k][Cfg::warp_L_kv/Cfg::mma_n][4]; 
@@ -249,10 +249,28 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
         for (int m = 0; m < Cfg::warp_L_q/Cfg::mma_m; m++)
         {
           for(int n = 0; n < Cfg::warp_L_kv/Cfg::mma_n; n++)
-          wa::mma_m16n16k16_row_col_f32_bf16(s_frag[m][n], q_frag[k][m], kt_frag[k][n]);
+            wa::mma_m16n16k16_row_col_f32_bf16(s_frag[m][n], q_frag[k][m], kt_frag[k][n]);
         }
       }
 
+      const float scale = rsqrtf((float)Cfg::D);
+
+      for (int m = 0; m < Cfg::warp_L_q/Cfg::mma_m; m++)
+      {
+        for (int n = 0; n < Cfg::warp_L_kv/Cfg::mma_n; n++)
+        {
+          float* s = s_frag[m][n];
+
+          s[0] *= scale;
+          s[1] *= scale;
+          s[2] *= scale;
+          s[3] *= scale;
+          s[4] *= scale;
+          s[5] *= scale;
+          s[6] *= scale;
+          s[7] *= scale;
+        }
+      }
       __syncthreads(); 
       flash_softmax_update<Cfg>(s_frag, o_frag, m_i, l_i); 
       __syncthreads(); 
