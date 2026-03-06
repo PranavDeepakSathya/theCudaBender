@@ -34,17 +34,17 @@ torch::Tensor attention(
     TORCH_CHECK(V.stride(0) == 1, "V must be column-major");
 
     // Shape contracts
-    TORCH_CHECK(Q.size(0) == Cfg::LQ, "Q shape mismatch");
+    TORCH_CHECK(Q.size(0) == Cfg::L_q, "Q shape mismatch");
     TORCH_CHECK(Q.size(1) == Cfg::D,  "Q shape mismatch");
 
-    TORCH_CHECK(K.size(0) == Cfg::LK, "K shape mismatch");
+    TORCH_CHECK(K.size(0) == Cfg::L_kv, "K shape mismatch");
     TORCH_CHECK(K.size(1) == Cfg::D,  "K shape mismatch");
 
-    TORCH_CHECK(V.size(0) == Cfg::LK, "V shape mismatch");
+    TORCH_CHECK(V.size(0) == Cfg::L_kv, "V shape mismatch");
     TORCH_CHECK(V.size(1) == Cfg::D,  "V shape mismatch");
 
     auto O = torch::empty(
-        {Cfg::LQ, Cfg::D},
+        {Cfg::L_q, Cfg::D},
         torch::TensorOptions()
             .device(Q.device())
             .dtype(torch::kFloat32)
@@ -64,22 +64,22 @@ torch::Tensor attention(
     CUtensorMap q_map =
         TmaDescriptor<nv_bfloat16>::create_2d_row_major(
             Q_ptr,
-            {Cfg::LQ, Cfg::D},
-            {Cfg::LQ, Cfg::D}
+            {Cfg::L_q, Cfg::D},
+            {Cfg::block_L_q, Cfg::D}
         );
 
     CUtensorMap k_map =
         TmaDescriptor<nv_bfloat16>::create_2d_row_major(
             K_ptr,
-            {Cfg::LK, Cfg::D},
-            {Cfg::LK, Cfg::D}
+            {Cfg::L_kv, Cfg::D},
+            {Cfg::block_L_kv, Cfg::D}
         );
 
     CUtensorMap v_map =
         TmaDescriptor<nv_bfloat16>::create_2d_col_major(
             V_ptr,
-            {Cfg::LK, Cfg::D},
-            {Cfg::LK, Cfg::D}
+            {Cfg::L_kv, Cfg::D},
+            {Cfg::block_L_kv, Cfg::D}
         );
 
     // ---- Launch ----
@@ -105,6 +105,6 @@ std::vector<int64_t> shape()
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
-    m.def("attention", &attention, "Single-warp Attention");
+    m.def("attention", &attention, "2d-attention");
     m.def("shape", &shape);
 }
