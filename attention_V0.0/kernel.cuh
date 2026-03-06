@@ -59,7 +59,7 @@ void flash_softmax_update(
     s_frag[2] = __expf(s_frag[2] - m1_new);
     s_frag[3] = __expf(s_frag[3] - m1_new);
     s_frag[6] = __expf(s_frag[6] - m1_new);
-    s_frag[7] = __expf(s_frag[7] - m1_new;
+    s_frag[7] = __expf(s_frag[7] - m1_new);
 
     row1_sum = s_frag[2] + s_frag[3] + s_frag[6] + s_frag[7];
 
@@ -75,6 +75,22 @@ void flash_softmax_update(
 
     m_i[0] = m0_new;
     m_i[1] = m1_new;
+}
+
+__device__ __forceinline__
+void pack_p_frag(
+    const float s_frag[8],
+    uint32_t p_frag_packed[4])
+{
+    nv_bfloat162 p0 = __float22bfloat162_rn(s_frag[0], s_frag[1]);
+    nv_bfloat162 p1 = __float22bfloat162_rn(s_frag[2], s_frag[3]);
+    nv_bfloat162 p2 = __float22bfloat162_rn(s_frag[4], s_frag[5]);
+    nv_bfloat162 p3 = __float22bfloat162_rn(s_frag[6], s_frag[7]);
+
+    p_frag_packed[0] = reinterpret_cast<uint32_t&>(p0);
+    p_frag_packed[1] = reinterpret_cast<uint32_t&>(p1);
+    p_frag_packed[2] = reinterpret_cast<uint32_t&>(p2);
+    p_frag_packed[3] = reinterpret_cast<uint32_t&>(p3);
 }
 
 
@@ -114,10 +130,12 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   uint32_t q_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::D/Cfg::mma_k][4]; 
   uint32_t kt_frag[Cfg::warp_L_kv/Cfg::mma_n][Cfg::D/Cfg::mma_k][4]; 
   float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8];
-  float p_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8];
   uint32_t p_frag_packed[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_k][4];
   uint32_t v_frag[Cfg::D/Cfg::mma_n][Cfg::warp_L_kv/Cfg::mma_k][4]; 
   float o_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::D/Cfg::mma_n][8]; 
+  float m_i[Cfg::warp_L_q/Cfg::mma_m][2]; 
+  float l_i[Cfg::warp_L_q/Cfg::mma_m[2]; 
+
 
   if (t == 0)
   {
@@ -153,6 +171,11 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     mbarrier_wait_parity(KVs_bar,parity);
     parity ^=1; 
 
+
+    for (int wlkv = 0; wlkv < Cfg::block_L_kv/Cfg::warp_L_kv; wlkv++)
+    {
+
+    }
 
 
   }
