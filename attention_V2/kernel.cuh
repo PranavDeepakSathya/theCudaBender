@@ -1,5 +1,6 @@
 #pragma once
 #include "../atoms/all.cuh"
+#include "smem_allocator.cuh"
 #include <math.h>
 namespace wa = warp_function;
 
@@ -20,7 +21,7 @@ void flash_softmax_update(
         float row1_max = -INFINITY;
 
         //--------------------------------
-        // first pass: max over lkv
+         // first pass: max over lkv
         //--------------------------------
         #pragma unroll
         for (int lkv = 0; lkv < Cfg::warp_L_kv/Cfg::mma_n; lkv++)
@@ -145,19 +146,14 @@ void pack_p_frag(
 
 
 template <class Cfg>
-__global__ void atheCudaBenderttention_kernel(__grid_constant__ const CUtensorMap q_map,
+__global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
                                  __grid_constant__ const CUtensorMap k_map,
                                 __grid_constant__ const CUtensorMap v_map,
                                 float*O)
 
 {
   extern __shared__ __align__(1024) uint8_t smem_raw[];
-  uint32_t smem = static_cast<uint32_t>(__cvta_generic_to_shared(smem_raw)); 
-  uint32_t Qs = smem; 
-  uint32_t Ks = smem;
-  uint32_t Vs = smem + (Cfg::Ks_bytes); 
-  uint32_t Qs_bar = Vs + (Cfg::Vs_bytes); 
-  uint32_t KVs_bar = Qs_bar + 16; 
+  SmemAllocator<Cfg> smem(smem_raw);
 
 
 
@@ -168,8 +164,9 @@ __global__ void atheCudaBenderttention_kernel(__grid_constant__ const CUtensorMa
 
   if (t == 0)
   { 
-    mbarrier_init(Qs_bar,Cfg::block_size); 
-    mbarrier_init(KVs_bar,Cfg::block_size); 
+    mbarrier_init(smem.Q_bar(),Cfg::block_size); 
+    for (int i = 0; i < Cfg::KVs_stages; i++)
+      mbarrier_init(smem.KV_bar(i),Cfg::block_size); 
   }
   __syncthreads();
 
@@ -199,40 +196,38 @@ __global__ void atheCudaBenderttention_kernel(__grid_constant__ const CUtensorMa
 
   if (t == 0)
   {
-    cp_async_bulk_tensor_3d(Qs,&q_map,0,block_start_lq,block_start_BH,Qs_bar);
-    mbarrier_arrive_expect_tx(Qs_bar, Cfg::Qs_bytes);
+    cp_async_bulk_tensor_3d(smem.Qs(),&q_map,0,block_start_lq,block_start_BH,smem.Q_bar());
+    mbarrier_arrive_expect_tx(smem.Q_bar(), Cfg::Qs_bytes);
   }
-  else mbarrier_arrive(Qs_bar); 
+  else mbarrier_arrive(smem.Q_bar()); 
 
-  mbarrier_wait_parity(Qs_bar,0); 
+  mbarrier_wait_parity(smem.Q_bar(),0); 
 
   for (int m = 0; m< Cfg::warp_L_q/Cfg::mma_m; m++)
   {
     for (int k = 0; k < Cfg::D/Cfg::mma_k; k++)
     {
-      uint32_t q_frag_ld_addr = Qs + ((warp_start_lq + (m*Cfg::mma_m) + (l%16))*Cfg::D + ((k*Cfg::mma_k + (8*(l/16)))))*sizeof(nv_bfloat16);
+      uint32_t q_frag_ld_addr = smem.Qs() + ((warp_start_lq + (m*Cfg::mma_m) + (l%16))*Cfg::D + ((k*Cfg::mma_k + (8*(l/16)))))*sizeof(nv_bfloat16);
       wa::ldmatrix_m8n8_x4_b16(q_frag[k][m],q_frag_ld_addr);
     }
   }
   __syncthreads(); 
 
-  int parity = 0; 
 
 
-  for (int blkv = 0; blkv < Cfg::L_kv/Cfg::block_L_kv; blkv++)
+  auto TMA_LOAD_K_V = [&](int blkv, int stage)
   {
     if (t == 0)
     {
-      cp_async_bulk_tensor_3d(Ks,&k_map,0,blkv*Cfg::block_L_kv,block_start_BH,KVs_bar);
-      cp_async_bulk_tensor_3d(Vs,&v_map,blkv*Cfg::block_L_kv,0,block_start_BH, KVs_bar);
-      mbarrier_arrive_expect_tx(KVs_bar, Cfg::Ks_bytes + Cfg::Vs_bytes);
+      cp_async_bulk_tensor_3d(smem.Ks(stage),&k_map,0,blkv*Cfg::block_L_kv,block_start_BH,smem.KV_bar(stage));
+      cp_async_bulk_tensor_3d(smem.Vs(stage),&v_map,blkv*Cfg::block_L_kv,0,block_start_BH, smem.KV_bar(stage));
+      mbarrier_arrive_expect_tx(smem.KV_bar(stage), Cfg::Ks_bytes + Cfg::Vs_bytes);
     }
-    else mbarrier_arrive(KVs_bar); 
+    else mbarrier_arrive(smem.KV_bar(stage));
+  };
 
-    mbarrier_wait_parity(KVs_bar,parity);
-    parity ^=1; 
-
-
+  auto consume = [&](int stage)
+  {
     for (int wlkv = 0; wlkv < Cfg::block_L_kv/Cfg::warp_L_kv; wlkv++)
     {
       float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8] = {0.0};
@@ -240,7 +235,7 @@ __global__ void atheCudaBenderttention_kernel(__grid_constant__ const CUtensorMa
       {
         for (int n = 0; n < Cfg::warp_L_kv/Cfg::mma_n; n++)
         {
-          uint32_t kt_ld_addr = Ks + ((wlkv*Cfg::warp_L_kv + n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::D + (k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16);
+          uint32_t kt_ld_addr = smem.Ks(stage) + ((wlkv*Cfg::warp_L_kv + n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::D + (k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16);
           wa::ldmatrix_m8n8_x4_b16(kt_frag[k][n], kt_ld_addr);
         }
       }
@@ -282,7 +277,7 @@ __global__ void atheCudaBenderttention_kernel(__grid_constant__ const CUtensorMa
       {
         for (int n = 0; n < Cfg::D/Cfg::mma_n; n++)
         {
-          uint32_t v_ld_addr = Vs + ((n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::block_L_kv + (wlkv*Cfg::warp_L_kv + k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16);
+          uint32_t v_ld_addr = smem.Vs(stage) + ((n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::block_L_kv + (wlkv*Cfg::warp_L_kv + k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16);
           wa::ldmatrix_m8n8_x4_b16(v_frag[k][n],v_ld_addr);
         }
       }
@@ -302,8 +297,38 @@ __global__ void atheCudaBenderttention_kernel(__grid_constant__ const CUtensorMa
       }
 
     }
+  };
 
+  for (int s = 0; s < Cfg::KVs_stages-1; s++)
+  {
+    TMA_LOAD_K_V(s,s);
   }
+
+
+  for (int blkv = 0; blkv < (Cfg::L_kv/Cfg::block_L_kv) - (Cfg::KVs_stages-1); blkv++)
+  {
+    int next_blkv_load_idx = blkv + Cfg::KVs_stages-1;
+    int next_blkv_load_stage = next_blkv_load_idx % Cfg::KVs_stages; 
+    int curr_blkv_consume_stage = blkv % Cfg::KVs_stages; 
+    int parity = (blkv/Cfg::KVs_stages) % 2; 
+    __syncthreads();
+    TMA_LOAD_K_V(next_blkv_load_idx, next_blkv_load_stage);
+    mbarrier_wait_parity(smem.KV_bar(curr_blkv_consume_stage), parity); 
+    consume(curr_blkv_consume_stage);
+  }
+
+  for (int blkv = (Cfg::L_kv/Cfg::block_L_kv) - (Cfg::KVs_stages-1); blkv < Cfg::L_kv/Cfg::block_L_kv; blkv++)
+
+  {
+
+    int curr_blkv_consume_stage = blkv % Cfg::KVs_stages; 
+    int parity = (blkv/Cfg::KVs_stages) % 2; 
+    __syncthreads();
+    mbarrier_wait_parity(smem.KV_bar(curr_blkv_consume_stage), parity); 
+    consume(curr_blkv_consume_stage); 
+  }
+
+  __syncthreads();
 
   float2 *O2 = reinterpret_cast<float2*>(O); 
   int ldO2 = Cfg::D/2; 
