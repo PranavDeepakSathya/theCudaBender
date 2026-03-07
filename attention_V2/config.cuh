@@ -28,10 +28,10 @@ struct AttnConfig
   static constexpr int L_q = 4096;
 
   static constexpr int block_L_q = 128;
-  static constexpr int block_L_kv = 128;
+  static constexpr int block_L_kv = 64;
 
-  static constexpr int warp_L_q =  32;
-  static constexpr int warp_L_kv = 32;
+  static constexpr int warp_L_q =  16;
+  static constexpr int warp_L_kv = 16;
   static constexpr int wlkv_stages = 2;
   static constexpr int KVs_stages = 2; 
   static constexpr int num_warps = block_L_q / warp_L_q;
@@ -50,6 +50,8 @@ struct AttnConfig
       cmax(Qs_bytes,Ks_bytes) + (Ks_bytes + Vs_bytes + 16)*KVs_stages;
 
   // 1D grid
+  static constexpr int block_L_kv_iters = L_kv/block_L_kv;
+  static constexpr int warp_L_kv_iters = block_L_kv/warp_L_kv; 
 
   static constexpr int GL_q = L_q/block_L_q;
 

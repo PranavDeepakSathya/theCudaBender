@@ -209,7 +209,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   {
     for (int k = 0; k < Cfg::D/Cfg::mma_k; k++)
     {
-      uint32_t q_frag_ld_addr = Qs + ((warp_start_lq + (m*Cfg::mma_m) + (l%16))*Cfg::D + ((k*Cfg::mma_k + (8*(l/16)))))*sizeof(nv_bfloat16);
+      uint32_t q_frag_ld_addr = smem.Qs() + ((warp_start_lq + (m*Cfg::mma_m) + (l%16))*Cfg::D + ((k*Cfg::mma_k + (8*(l/16)))))*sizeof(nv_bfloat16);
       wa::ldmatrix_m8n8_x4_b16(q_frag[k][m],q_frag_ld_addr);
     }
   }
@@ -237,7 +237,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     {
       for (int n = 0; n < Cfg::warp_L_kv/Cfg::mma_n; n++)
       {
-        uint32_t kt_ld_addr = smem.KS(stage) + ((wlkv_idx*Cfg::warp_L_kv + n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::D + (k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16);
+        uint32_t kt_ld_addr = smem.Ks(stage) + ((wlkv_idx*Cfg::warp_L_kv + n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::D + (k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16);
         wa::ldmatrix_m8n8_x4_b16(kt_frag[wlkv_stage][k][n], kt_ld_addr);
       }
     }
@@ -284,15 +284,14 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
         s[7] *= scale;
       }
     }
-    __syncthreads(); 
+
     flash_softmax_update<Cfg>(s_frag, o_frag, m_i, l_i); 
-    __syncthreads(); 
 
     pack_p_frag<Cfg>(s_frag, p_frag_packed);
 
   };
 
-  auto load_V_frag = [&](uint32_t v_frag[Cfg::wlkv_stages][Cfg::warp_L_kv/Cfg::mma_k][Cfg::D/Cfg::mma_n][4]; ,
+  auto load_V_frag = [&](uint32_t v_frag[Cfg::wlkv_stages][Cfg::warp_L_kv/Cfg::mma_k][Cfg::D/Cfg::mma_n][4],
                         int wlkv_idx, int wlkv_stage, int stage)
   {
 
@@ -308,7 +307,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
 
   auto mma_PV = [&](float o_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::D/Cfg::mma_n][8],
                     uint32_t p_frag_packed[Cfg::warp_L_kv/Cfg::mma_k][Cfg::warp_L_q/Cfg::mma_m][4],
-                    uint32_t v_frag[Cfg::wlkv_stages][Cfg::warp_L_kv/Cfg::mma_k][Cfg::D/Cfg::mma_n], int wlkv_stage) 
+                    uint32_t v_frag[Cfg::wlkv_stages][Cfg::warp_L_kv/Cfg::mma_k][Cfg::D/Cfg::mma_n][4], int wlkv_stage) 
   {
     for (int k = 0; k < Cfg::warp_L_kv/Cfg::mma_k; k++)
     {
@@ -327,32 +326,153 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
 
 
 
-
-  for (int blkv = 0; blkv < Cfg::L_kv/Cfg::block_L_kv; blkv++)
+  for (int i = 0; i < Cfg::KVs_stages; i++)
   {
-    
-    for (int wlkv = 0; wlkv < Cfg::block_L_kv/Cfg::warp_L_kv; wlkv++)
-    {
+    TMA_load_K_V(i,i);  
+  }
+  mbarrier_wait_parity(smem.KV_bar(0),0); 
 
-      float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8] = {0.0};
-      
-
-      
-
-      
-
-
-      
-
-    }
-
+  for (int i = 0; i < Cfg::wlkv_stages-1; i++)
+  {
+    load_KT_frag(kt_frag,i,i,0);
+    load_V_frag(v_frag,i,i,0);
   }
 
 
+  static constexpr int full_blkv_iters = Cfg::block_L_kv_iters - Cfg::KVs_stages; 
+  static constexpr int wlkv_iters = Cfg::warp_L_kv_iters - (Cfg::wlkv_stages-1); 
 
+  for (int blkv_idx = 0; blkv_idx < full_blkv_iters; blkv_idx++)
+  {
+    int blkv_cons_stage = blkv_idx % Cfg::KVs_stages; 
+    int next_blkv_cons_stage = (blkv_idx+1) % Cfg::KVs_stages; 
+    int parity = ((blkv_idx+1)/Cfg::KVs_stages) % 2; 
+    
+    int next_blkv_load_idx = blkv_idx + Cfg::KVs_stages; 
+    int next_blkv_load_stage = next_blkv_load_idx % Cfg::KVs_stages; 
+    int blkv_base = blkv_idx*Cfg::warp_L_kv_iters; 
+
+    for (int wlkv_idx = 0; wlkv_idx < wlkv_iters; wlkv_idx++)
+    {
+      float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8] = {0.0};
+
+      int wlkv_load_idx = (wlkv_idx + (Cfg::wlkv_stages-1)) % Cfg::warp_L_kv_iters;
+      int wlkv_load_stage = (blkv_base + wlkv_load_idx) % Cfg::wlkv_stages; 
+      int wlkv_compute_stage = (blkv_base + wlkv_idx) % Cfg::wlkv_stages; 
+
+      load_KT_frag(kt_frag,wlkv_load_idx,wlkv_load_stage,blkv_cons_stage);
+      load_V_frag(v_frag,wlkv_load_idx,wlkv_load_stage,blkv_cons_stage);
+      mma_Q_KT(s_frag,q_frag,kt_frag,wlkv_compute_stage);
+      __syncthreads();
+      scale_softmax_update_pack(s_frag, p_frag_packed,o_frag,m_i,l_i);
+      __syncthreads();
+      mma_PV(o_frag,p_frag_packed,v_frag,wlkv_compute_stage);
+    }
+    __syncthreads();
+    TMA_load_K_V(next_blkv_load_idx,next_blkv_load_stage);
+    mbarrier_wait_parity(smem.KV_bar(next_blkv_cons_stage),parity); 
+    
+    for (int wlkv_idx = wlkv_iters; wlkv_idx < Cfg::warp_L_kv_iters; wlkv_idx++)
+    {
+      float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8] = {0.0};
+
+      int wlkv_load_idx = (wlkv_idx + (Cfg::wlkv_stages-1)) % Cfg::warp_L_kv_iters;
+      int wlkv_load_stage = (blkv_base + wlkv_load_idx) % Cfg::wlkv_stages; 
+      int wlkv_compute_stage = (blkv_base + wlkv_idx) % Cfg::wlkv_stages; 
+
+
+      load_KT_frag(kt_frag, wlkv_load_idx,wlkv_load_stage, next_blkv_cons_stage);
+      load_V_frag(v_frag, wlkv_load_idx,wlkv_load_stage, next_blkv_cons_stage);
+      mma_Q_KT(s_frag, q_frag, kt_frag, wlkv_compute_stage);
+      __syncthreads();
+      scale_softmax_update_pack(s_frag, p_frag_packed,o_frag,m_i,l_i);
+      __syncthreads();
+      mma_PV(o_frag,p_frag_packed,v_frag,wlkv_compute_stage);
+    }
+  }
+
+  static constexpr int no_tma_end = full_blkv_iters + (Cfg::KVs_stages-1);
+  for (int blkv_idx = full_blkv_iters; blkv_idx < no_tma_end; blkv_idx++)
+  {
+    int blkv_cons_stage = blkv_idx % Cfg::KVs_stages; 
+    int next_blkv_cons_stage = (blkv_idx+1) % Cfg::KVs_stages; 
+    int parity = ((blkv_idx+1)/Cfg::KVs_stages) % 2; 
+    int blkv_base = blkv_idx*Cfg::warp_L_kv_iters; 
+
+    for (int wlkv_idx = 0; wlkv_idx < wlkv_iters; wlkv_idx++)
+    {
+      float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8] = {0.0};
+
+      int wlkv_load_idx = (wlkv_idx + (Cfg::wlkv_stages-1)) % Cfg::warp_L_kv_iters;
+      int wlkv_load_stage = (blkv_base + wlkv_load_idx) % Cfg::wlkv_stages; 
+      int wlkv_compute_stage = (blkv_base + wlkv_idx) % Cfg::wlkv_stages; 
+
+      load_KT_frag(kt_frag,wlkv_load_idx,wlkv_load_stage,blkv_cons_stage);
+      load_V_frag(v_frag,wlkv_load_idx,wlkv_load_stage,blkv_cons_stage);
+      mma_Q_KT(s_frag,q_frag,kt_frag,wlkv_compute_stage);
+      __syncthreads();
+      scale_softmax_update_pack(s_frag, p_frag_packed,o_frag,m_i,l_i);
+      __syncthreads();
+      mma_PV(o_frag,p_frag_packed,v_frag,wlkv_compute_stage);
+    }
+    __syncthreads();
+    mbarrier_wait_parity(smem.KV_bar(next_blkv_cons_stage),parity); 
+    
+    for (int wlkv_idx = wlkv_iters; wlkv_idx < Cfg::warp_L_kv_iters; wlkv_idx++)
+    {
+      float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8] = {0.0};
+
+      int wlkv_load_idx = (wlkv_idx + (Cfg::wlkv_stages-1)) % Cfg::warp_L_kv_iters;
+      int wlkv_load_stage = (blkv_base + wlkv_load_idx) % Cfg::wlkv_stages; 
+      int wlkv_compute_stage = (blkv_base + wlkv_idx) % Cfg::wlkv_stages; 
+
+
+      load_KT_frag(kt_frag, wlkv_load_idx,wlkv_load_stage, next_blkv_cons_stage);
+      load_V_frag(v_frag, wlkv_load_idx,wlkv_load_stage, next_blkv_cons_stage);
+      mma_Q_KT(s_frag, q_frag, kt_frag, wlkv_compute_stage);
+      __syncthreads();
+      scale_softmax_update_pack(s_frag, p_frag_packed,o_frag,m_i,l_i);
+      __syncthreads();
+      mma_PV(o_frag,p_frag_packed,v_frag,wlkv_compute_stage);
+    }
+  }
+
+  static constexpr int blkv_idx = Cfg::block_L_kv_iters - 1; 
+  static constexpr int blkv_cons_stage = blkv_idx % Cfg::KVs_stages; 
+  static constexpr int blkv_base = blkv_idx*Cfg::warp_L_kv_iters; 
+
+  for (int wlkv_idx = 0; wlkv_idx < wlkv_iters; wlkv_idx++)
+  {
+    float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8] = {0.0};
+
+    int wlkv_load_idx = (wlkv_idx + (Cfg::wlkv_stages-1)) % Cfg::warp_L_kv_iters;
+    int wlkv_load_stage = (blkv_base + wlkv_load_idx) % Cfg::wlkv_stages; 
+    int wlkv_compute_stage = (blkv_base + wlkv_idx) % Cfg::wlkv_stages; 
+
+    load_KT_frag(kt_frag,wlkv_load_idx,wlkv_load_stage,blkv_cons_stage);
+    load_V_frag(v_frag,wlkv_load_idx,wlkv_load_stage,blkv_cons_stage);
+    mma_Q_KT(s_frag,q_frag,kt_frag,wlkv_compute_stage);
+    __syncthreads();
+    scale_softmax_update_pack(s_frag, p_frag_packed,o_frag,m_i,l_i);
+    __syncthreads();
+    mma_PV(o_frag,p_frag_packed,v_frag,wlkv_compute_stage);
+  }
+
+  for (int wlkv_idx = wlkv_iters; wlkv_idx < Cfg::warp_L_kv_iters; wlkv_idx++)
+  {
+    float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8] = {0.0};
+    int wlkv_compute_stage = (blkv_base + wlkv_idx) % Cfg::wlkv_stages; 
+
+    mma_Q_KT(s_frag, q_frag, kt_frag, wlkv_compute_stage);
+    __syncthreads();
+    scale_softmax_update_pack(s_frag, p_frag_packed,o_frag,m_i,l_i);
+    __syncthreads();
+    mma_PV(o_frag,p_frag_packed,v_frag,wlkv_compute_stage);
+  }
 
   //storaze 
-  
+  __syncthreads();
+
 
   float2 *O2 = reinterpret_cast<float2*>(O); 
   int ldO2 = Cfg::D/2; 
