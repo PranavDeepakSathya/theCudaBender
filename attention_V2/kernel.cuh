@@ -337,7 +337,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     load_KT_frag(kt_frag,i,i,0);
     load_V_frag(v_frag,i,i,0);
   }
-
+  __syncthreads();
 
   static constexpr int full_blkv_iters = Cfg::block_L_kv_iters - Cfg::KVs_stages; 
   static constexpr int wlkv_iters = Cfg::warp_L_kv_iters - (Cfg::wlkv_stages-1); 

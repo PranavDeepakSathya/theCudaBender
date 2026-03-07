@@ -32,8 +32,8 @@ struct AttnConfig
 
   static constexpr int warp_L_q =  16;
   static constexpr int warp_L_kv = 16;
-  static constexpr int wlkv_stages = 2;
-  static constexpr int KVs_stages = 2; 
+  static constexpr int wlkv_stages = 1;
+  static constexpr int KVs_stages = 1; 
   static constexpr int num_warps = block_L_q / warp_L_q;
   static constexpr int block_size = num_warps * 32;
 
