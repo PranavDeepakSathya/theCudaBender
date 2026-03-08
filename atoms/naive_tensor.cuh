@@ -125,15 +125,14 @@ public:
         return view;
     }
 
-    // --------------------------------------------------------
-    // Utils
-    // --------------------------------------------------------
     void pretty_print() {
         to_host();
         std::cout << std::fixed << std::setprecision(4);
-        size_t offset = 0;
-        print_recursive(0, offset);
-        std::cout << std::endl;
+
+        std::vector<size_t> idx(shape.size(), 0);
+        print_recursive(0, idx);
+
+        std::cout << "\n";
     }
 
 private:
@@ -166,30 +165,33 @@ private:
         }
     }
 
-    void print_recursive(int dim, size_t& offset) {
-        // Simplified recursive printer that respects internal shape
-        if (dim == shape.size() - 1) {
-            std::cout << "[";
-            for (size_t i = 0; i < shape[dim]; ++i) {
-                float val = static_cast<float>(h_ptr[offset]);
-                // Manual stride advance for printing linear buffer sequentially 
-                // (Only works if we assume print visits in RowMajor order regardless of layout)
-                // For true layout-aware printing, we'd need complex index reconstruction.
-                // Assuming "pretty_print" is just for standard debug inspection of the buffer.
-                offset++; 
-                if (val >= 0) std::cout << " "; 
-                std::cout << val;
-                if (i < shape[dim] - 1) std::cout << ", ";
-            }
-            std::cout << "]";
-        } else {
-            std::cout << "[";
-            for (size_t i = 0; i < shape[dim]; ++i) {
-                if (i > 0) std::cout << std::string(dim + 1, ' ');
-                print_recursive(dim + 1, offset);
-                if (i < shape[dim] - 1) std::cout << ",\n";
-            }
-            std::cout << "]";
-        }
-    }
+
+
+    void print_recursive(size_t dim, std::vector<size_t>& idx) {
+      if (dim == shape.size()) {
+          size_t offset = 0;
+          for (size_t i = 0; i < shape.size(); i++)
+              offset += idx[i] * strides[i];
+
+          float val = static_cast<float>(h_ptr[offset]);
+          if (val >= 0) std::cout << " ";
+          std::cout << val;
+          return;
+      }
+
+      std::cout << "[";
+      for (size_t i = 0; i < shape[dim]; i++) {
+          idx[dim] = i;
+
+          if (i > 0) {
+              if (dim == shape.size() - 1)
+                  std::cout << ", ";
+              else
+                  std::cout << ",\n" << std::string(dim + 1, ' ');
+          }
+
+          print_recursive(dim + 1, idx);
+      }
+      std::cout << "]";
+  }
 };

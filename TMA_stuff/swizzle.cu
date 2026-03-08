@@ -4,7 +4,7 @@ struct SwizzleConfig
     using dtype = float;
 
     static constexpr int M = 128;
-    static constexpr int N = 8;
+    static constexpr int N = 64;
 
     // Box tile == full matrix for now
     static constexpr int BOX_M = M;
@@ -12,7 +12,7 @@ struct SwizzleConfig
 
     // Input swizzle (experiment knob)
     static constexpr CUtensorMapSwizzle IN_SWIZZLE =
-        CU_TENSOR_MAP_SWIZZLE_32B;
+        CU_TENSOR_MAP_SWIZZLE_128B;
 
     // Output always identity
     static constexpr CUtensorMapSwizzle OUT_SWIZZLE =
