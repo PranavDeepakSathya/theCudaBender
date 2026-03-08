@@ -166,7 +166,10 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   { 
     mbarrier_init(smem.Q_bar(),Cfg::block_size); 
     for (int i = 0; i < Cfg::KVs_stages; i++)
-      mbarrier_init(smem.KV_bar(i),Cfg::block_size); 
+    {
+      mbarrier_init(smem.K_bar(i),Cfg::block_size); 
+      mbarrier_init(smem.V_bar(i),Cfg::block_size);
+    }
   }
   __syncthreads();
 
@@ -202,9 +205,10 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   else mbarrier_arrive(smem.Q_bar()); 
 
   mbarrier_wait_parity(smem.Q_bar(),0); 
-
+  #pragma unroll
   for (int m = 0; m< Cfg::warp_L_q/Cfg::mma_m; m++)
   {
+    #pragma unroll
     for (int k = 0; k < Cfg::D/Cfg::mma_k; k++)
     {
       uint32_t q_frag_ld_addr = smem.Qs() + ((warp_start_lq + (m*Cfg::mma_m) + (l%16))*Cfg::D + ((k*Cfg::mma_k + (8*(l/16)))))*sizeof(nv_bfloat16);
@@ -219,49 +223,54 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   {
     if (t == 0)
     {
-      cp_async_bulk_tensor_3d(smem.Ks(stage),&k_map,blkv*Cfg::block_L_kv,0,block_start_BH,smem.KV_bar(stage));
-      cp_async_bulk_tensor_3d(smem.Vs(stage),&v_map,blkv*Cfg::block_L_kv,0,block_start_BH, smem.KV_bar(stage));
-      mbarrier_arrive_expect_tx(smem.KV_bar(stage), Cfg::Ks_bytes + Cfg::Vs_bytes);
+      mbarrier_arrive_expect_tx(smem.K_bar(stage), Cfg::Ks_bytes);
+      mbarrier_arrive_expect_tx(smem.V_bar(stage), Cfg::Vs_bytes);
+      cp_async_bulk_tensor_3d(smem.Ks(stage),&k_map,blkv*Cfg::block_L_kv,0,block_start_BH,smem.K_bar(stage));
+      cp_async_bulk_tensor_3d(smem.Vs(stage),&v_map,blkv*Cfg::block_L_kv,0,block_start_BH, smem.V_bar(stage));
+
     }
-    else mbarrier_arrive(smem.KV_bar(stage));
+    else 
+    {
+      mbarrier_arrive(smem.K_bar(stage));
+      mbarrier_arrive(smem.V_bar(stage));
+    }
   };
 
-  auto consume = [&](int stage)
+  auto consume = [&](int stage, int parity)
   {
+    mbarrier_wait_parity(smem.K_bar(stage),parity); 
+
     for (int wlkv = 0; wlkv < Cfg::block_L_kv/Cfg::warp_L_kv; wlkv++)
     {
+      
       float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8] = {0.0};
+      #pragma unroll
       for (int k = 0; k < Cfg::D/Cfg::mma_k; k++)
       {
+        #pragma unroll
         for (int n = 0; n < Cfg::warp_L_kv/Cfg::mma_n; n++)
         {
           uint32_t kt_ld_addr = smem.Ks(stage) + compact_swizzle<Cfg::swizzle_num>(sizeof(nv_bfloat16)*(((k*Cfg::mma_k) + (l%16))*Cfg::block_L_kv  + ((wlkv*Cfg::warp_L_kv) + (n*Cfg::mma_n) + (8*(l/16)))));
           wa::ldmatrix_m8n8_x4_trans_b16(kt_frag[k][n], kt_ld_addr);
         }
       }
-
-      for (int k = 0; k < Cfg::warp_L_kv/Cfg::mma_k;k++)
-      {
-        for (int n = 0; n < Cfg::D/Cfg::mma_n; n++)
-        {
-          uint32_t v_ld_addr = smem.Vs(stage) + compact_swizzle<Cfg::swizzle_num>(((n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::block_L_kv + (wlkv*Cfg::warp_L_kv + k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16));
-          wa::ldmatrix_m8n8_x4_b16(v_frag[k][n],v_ld_addr);
-        }
-      }
-
+      #pragma unroll
       for (int k = 0; k < Cfg::D/Cfg::mma_k; k++)
       {
+        #pragma unroll
         for (int m = 0; m < Cfg::warp_L_q/Cfg::mma_m; m++)
         {
+          #pragma unroll
           for(int n = 0; n < Cfg::warp_L_kv/Cfg::mma_n; n++)
             wa::mma_m16n16k16_row_col_f32_bf16(s_frag[m][n], q_frag[k][m], kt_frag[k][n]);
         }
       }
 
       const float scale = rsqrtf((float)Cfg::D);
-
+      #pragma unroll
       for (int m = 0; m < Cfg::warp_L_q/Cfg::mma_m; m++)
       {
+        #pragma unroll
         for (int n = 0; n < Cfg::warp_L_kv/Cfg::mma_n; n++)
         {
           float* s = s_frag[m][n];
@@ -282,12 +291,25 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
 
       pack_p_frag<Cfg>(s_frag, p_frag_packed);
 
+      mbarrier_wait_parity(smem.V_bar(stage),parity); 
+      #pragma unroll
+      for (int k = 0; k < Cfg::warp_L_kv/Cfg::mma_k;k++)
+      {
+        #pragma unroll
+        for (int n = 0; n < Cfg::D/Cfg::mma_n; n++)
+        {
+          uint32_t v_ld_addr = smem.Vs(stage) + compact_swizzle<Cfg::swizzle_num>(((n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::block_L_kv + (wlkv*Cfg::warp_L_kv + k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16));
+          wa::ldmatrix_m8n8_x4_b16(v_frag[k][n],v_ld_addr);
+        }
+      }
 
-
+      #pragma unroll
       for (int k = 0; k < Cfg::warp_L_kv/Cfg::mma_k; k++)
       {
+        #pragma unroll
         for (int m = 0; m < Cfg::warp_L_q/Cfg::mma_m; m++)
         {
+          #pragma unroll
           for (int n = 0; n < Cfg::D/Cfg::mma_n; n++)
           {
             wa::mma_m16n16k16_row_col_f32_bf16(
@@ -301,6 +323,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     }
   };
 
+  #pragma unroll
   for (int s = 0; s < Cfg::KVs_stages-1; s++)
   {
     TMA_LOAD_K_V(s,s);
@@ -315,9 +338,9 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     int parity = (blkv/Cfg::KVs_stages) % 2; 
     __syncthreads();
     TMA_LOAD_K_V(next_blkv_load_idx, next_blkv_load_stage);
-    mbarrier_wait_parity(smem.KV_bar(curr_blkv_consume_stage), parity); 
-    consume(curr_blkv_consume_stage);
+    consume(curr_blkv_consume_stage,parity);
   }
+
 
   for (int blkv = (Cfg::L_kv/Cfg::block_L_kv) - (Cfg::KVs_stages-1); blkv < Cfg::L_kv/Cfg::block_L_kv; blkv++)
 
@@ -326,8 +349,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     int curr_blkv_consume_stage = blkv % Cfg::KVs_stages; 
     int parity = (blkv/Cfg::KVs_stages) % 2; 
     __syncthreads();
-    mbarrier_wait_parity(smem.KV_bar(curr_blkv_consume_stage), parity); 
-    consume(curr_blkv_consume_stage); 
+    consume(curr_blkv_consume_stage,parity); 
   }
 
   __syncthreads();
@@ -335,9 +357,10 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   float2 *O2 = reinterpret_cast<float2*>(O); 
   int ldO2 = Cfg::D/2; 
   int head_base = block_start_BH * Cfg::L_q * ldO2;
-
+  #pragma unroll
   for (int m = 0; m < Cfg::warp_L_q/Cfg::mma_m; m++)
   {
+    #pragma unroll
     for (int n = 0; n < Cfg::D/Cfg::mma_n; n++)
     {
       int O_row = block_start_lq + warp_start_lq + (m*Cfg::mma_m) + (l/4); 
