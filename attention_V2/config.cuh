@@ -47,8 +47,11 @@ struct AttnConfig
 
   static constexpr int KVs_stages = 2;
 
-  static constexpr uint32_t shared_bytes =
-      (Ks_bytes + Vs_bytes + 16)*KVs_stages;
+
+  static constexpr int KVs_all_stages_bytes = (Ks_bytes + Vs_bytes)*KVs_stages;
+
+  static constexpr uint32_t shared_bytes = cmax(KVs_all_stages_bytes, Qs_bytes) + 8 + (8*KVs_stages); 
+
 
   // 1D grid
 
