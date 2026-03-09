@@ -71,15 +71,18 @@ torch::Tensor attention(
             Q_ptr,
             {Cfg::BH, Cfg::L_q, Cfg::D},
             {1, Cfg::block_L_q, Cfg::D},
-            {2,1,0}   // D,L,BH  (row-major inner)
+            {2,1,0} // D,L,BH  (row-major inner)
+            
         );
 
     CUtensorMap k_map =
         TmaDescriptor<nv_bfloat16>::create_with_layout<3>(
             K_ptr,
-            {Cfg::BH, Cfg::L_kv, Cfg::D},
-            {1, Cfg::block_L_kv, Cfg::D},
-            {2,1,0}   // D,L,BH
+            {Cfg::BH, 2*Cfg::L_kv, Cfg::D/2},
+            {1, 2*Cfg::block_L_kv, Cfg::D/2},
+            {2,1,0},
+            Cfg::D_swizzle_mode
+
         );
 
     CUtensorMap v_map =
@@ -87,7 +90,7 @@ torch::Tensor attention(
             V_ptr,
             {Cfg::BH, Cfg::L_kv, Cfg::D},
             {1, Cfg::block_L_kv, Cfg::D},
-            {1,2,0},   // L,D,BH  (column-major inner)
+            {1,2,0},
             Cfg::swizzle_mode
         );
 

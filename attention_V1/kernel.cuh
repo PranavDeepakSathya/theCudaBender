@@ -145,7 +145,7 @@ void pack_p_frag(
 
 
 template <class Cfg>
-__global__ void atheCudaBenderttention_kernel(__grid_constant__ const CUtensorMap q_map,
+__global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
                                  __grid_constant__ const CUtensorMap k_map,
                                 __grid_constant__ const CUtensorMap v_map,
                                 float*O)

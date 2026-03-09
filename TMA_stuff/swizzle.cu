@@ -6,6 +6,9 @@ struct SwizzleConfig
     static constexpr int M = 128;
     static constexpr int N = 64;
 
+    static constexpr int logical_M = 64; 
+    static constexpr int logical_N = 128; 
+
     // Box tile == full matrix for now
     static constexpr int BOX_M = M;
     static constexpr int BOX_N = N;

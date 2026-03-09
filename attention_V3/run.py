@@ -53,11 +53,6 @@ diff = (O - O_ref).abs()
 
 print("Max abs error:", diff.max().item())
 print("Mean abs error:", diff.mean().item())
-
-for t in [1e-3, 1e-2, 5e-2, 1e-1]:
-    count = (diff > t).sum().item()
-    print(f">{t}: {count}")
-        
 for seed in range(10):
     torch.manual_seed(seed)
 
@@ -72,8 +67,6 @@ for seed in range(10):
     O_ref = torch.matmul(P, V.float())
 
     print(seed, (O - O_ref).abs().max().item())
-    # how many elements exceed thresholds
-
 
 iters = 2000
 

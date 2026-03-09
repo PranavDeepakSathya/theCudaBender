@@ -1,0 +1,2 @@
+okay so basically, we are tricking the TMA into assuming that the D major K has 128B leading dimension box size. 
+that should not change the adress calc, and hopefully we should now be able to swizzle (i'll just keep this version without swizzle cause we are correct so far in terms of numerics, and I'll swizzle in the next version)

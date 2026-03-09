@@ -24,11 +24,11 @@ struct AttnConfig
   static constexpr int BH = B * H;
 
   static constexpr int D = 128;
-  static constexpr int L_kv = 8192;
-  static constexpr int L_q = 4096;
+  static constexpr int L_kv = 4096;
+  static constexpr int L_q = 8192;
 
   static constexpr int block_L_q = 256;
-  static constexpr int block_L_kv = 64;
+  static constexpr int block_L_kv = 32;
 
   static constexpr int warp_L_q =  32;
   static constexpr int warp_L_kv = 32;
@@ -45,20 +45,14 @@ struct AttnConfig
   static constexpr uint32_t Vs_bytes =
       block_L_kv * D * sizeof(nv_bfloat16);
 
-  static constexpr int KVs_stages = 2;
-
-
-  static constexpr int KVs_all_stages_bytes = (Ks_bytes + Vs_bytes)*KVs_stages;
-
-  static constexpr uint32_t shared_bytes = cmax(KVs_all_stages_bytes, Qs_bytes) + 8 + (8*KVs_stages); 
-
+  static constexpr uint32_t shared_bytes =
+      cmax(Qs_bytes, Ks_bytes + Vs_bytes) + 16;
 
   // 1D grid
 
   static constexpr int GL_q = L_q/block_L_q;
 
   static constexpr int grid_size = BH*GL_q;
-
 
   static_assert(D % mma_k == 0);
   static_assert(warp_L_q % mma_m == 0);

@@ -77,8 +77,8 @@ torch::Tensor attention(
     CUtensorMap k_map =
         TmaDescriptor<nv_bfloat16>::create_with_layout<3>(
             K_ptr,
-            {Cfg::BH, Cfg::L_kv, Cfg::D},
-            {1, Cfg::block_L_kv, Cfg::D},
+            {Cfg::BH, 2*Cfg::L_kv, Cfg::D/2},
+            {1, 2*Cfg::block_L_kv, Cfg::D/2},
             {2,1,0}   // D,L,BH
         );
 
