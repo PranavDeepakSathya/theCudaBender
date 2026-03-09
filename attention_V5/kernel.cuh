@@ -287,7 +287,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
       }
       __syncthreads();
       flash_softmax_update<Cfg>(s_frag, o_frag, m_i, l_i); 
-
+      __syncthreads();
       pack_p_frag<Cfg>(s_frag, p_frag_packed);
       __syncthreads();
 
@@ -302,7 +302,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
           wa::ldmatrix_m8n8_x4_b16(v_frag[k][n],v_ld_addr);
         }
       }
-
+      
       #pragma unroll
       for (int k = 0; k < Cfg::warp_L_kv/Cfg::mma_k; k++)
       {
