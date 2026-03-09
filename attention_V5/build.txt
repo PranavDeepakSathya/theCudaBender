@@ -1,6 +1,0 @@
-[1/2] /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output export.cuda.o.d -DTORCH_EXTENSION_NAME=attention_warp -DTORCH_API_INCLUDE_EXTENSION_H -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /usr/local/cuda/include -isystem /venv/main/include/python3.12 -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -arch=sm_120 -O3 --use_fast_math -std=c++17 -c /root/theCudaBender/attention_V5/export.cu -o export.cuda.o 
-[2/2] c++ export.cuda.o -shared -lcuda -L/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/lib -lc10 -lc10_cuda -ltorch_cpu -ltorch_cuda -ltorch -ltorch_python -L/usr/local/cuda/lib64 -lcudart -o attention_warp.so
-BH=32, LQ=4096, D=128, LK=8192
-Max abs error: 0.09698398411273956
-Mean abs error: 0.00039154384285211563
-Effective TFLOP/s: 181.31405569077054
