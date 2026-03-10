@@ -1,1 +1,2 @@
-Maybe its time to private this repo. 
+gotta clean this repo up
+
