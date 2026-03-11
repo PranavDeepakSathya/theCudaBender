@@ -27,7 +27,7 @@ struct AttnConfig
   static constexpr int L_kv = 4096;
   static constexpr int L_q = 8192;
 
-  static constexpr int block_L_q = 128;
+  static constexpr int block_L_q = 256;
   static constexpr int block_L_kv = 32;
 
   static constexpr int warp_L_q =  32;

@@ -79,3 +79,17 @@ template<int Threads>
 __device__ inline void sync_bar() {
     asm volatile("bar.sync 1, %0;" :: "n"(Threads));
 }
+
+__device__ inline
+int elect_sync() {
+  int pred = 0;
+  asm volatile(
+    "{\n"
+    ".reg .pred P;\n"
+    "elect.sync _|P, %1;\n"
+    "@P mov.s32 %0, 1;\n"
+    "}"
+    : "+r"(pred) : "r"(0xFFFF'FFFF)
+  );
+  return pred;
+}

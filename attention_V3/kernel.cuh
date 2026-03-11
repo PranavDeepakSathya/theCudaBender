@@ -169,8 +169,9 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
 
   if (t == 0)
   { 
-    mbarrier_init(Qs_bar,Cfg::block_size); 
-    mbarrier_init(KVs_bar,Cfg::block_size); 
+    mbarrier_init(Qs_bar,32); 
+    mbarrier_init(KVs_bar,32); 
+    asm volatile("fence.mbarrier_init.release.cluster;");  
   }
   __syncthreads();
 
@@ -197,13 +198,17 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
       l_i[m][0] = 0.f;
       l_i[m][1] = 0.f;
   }
-
-  if (t == 0)
+  if (w == 0)
   {
-    cp_async_bulk_tensor_3d(Qs,&q_map,0,block_start_lq,block_start_BH,Qs_bar);
-    mbarrier_arrive_expect_tx(Qs_bar, Cfg::Qs_bytes);
+    if (elect_sync())
+    {
+      mbarrier_arrive_expect_tx(Qs_bar, Cfg::Qs_bytes);
+      cp_async_bulk_tensor_3d(Qs,&q_map,0,block_start_lq,block_start_BH,Qs_bar);
+
+    }
+    else mbarrier_arrive(Qs_bar); 
+
   }
-  else mbarrier_arrive(Qs_bar); 
 
   mbarrier_wait_parity(Qs_bar,0); 
 
@@ -222,13 +227,16 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
 
   for (int blkv = 0; blkv < Cfg::L_kv/Cfg::block_L_kv; blkv++)
   {
-    if (t == 0)
+    if(w == 0)
     {
-      cp_async_bulk_tensor_3d(Ks,&k_map,0,(2*blkv*Cfg::block_L_kv),block_start_BH,KVs_bar);
-      cp_async_bulk_tensor_3d(Vs,&v_map,blkv*Cfg::block_L_kv,0,block_start_BH, KVs_bar);
-      mbarrier_arrive_expect_tx(KVs_bar, Cfg::Ks_bytes + Cfg::Vs_bytes);
+      if (elect_sync())
+      {
+        cp_async_bulk_tensor_3d(Ks,&k_map,0,(2*blkv*Cfg::block_L_kv),block_start_BH,KVs_bar);
+        cp_async_bulk_tensor_3d(Vs,&v_map,blkv*Cfg::block_L_kv,0,block_start_BH, KVs_bar);
+        mbarrier_arrive_expect_tx(KVs_bar, Cfg::Ks_bytes + Cfg::Vs_bytes);
+      }
+      else mbarrier_arrive(KVs_bar); 
     }
-    else mbarrier_arrive(KVs_bar); 
 
     mbarrier_wait_parity(KVs_bar,parity);
     parity ^=1; 

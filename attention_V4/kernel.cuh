@@ -211,7 +211,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   }
   __syncthreads();
 
-  if (w == 0) mbarrier_wait_parity(Qs_bar,0); 
+  mbarrier_wait_parity(Qs_bar,0); 
   __syncthreads();
 
   for (int m = 0; m< Cfg::warp_L_q/Cfg::mma_m; m++)
@@ -222,8 +222,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
       wa::ldmatrix_m8n8_x4_b16(q_frag[k][m],q_frag_ld_addr);
     }
   }
-  __syncthreads(); 
-  tma_fence();
+
   int parity = 0; 
 
   auto TMA_LOAD_K_V = [&](int blkv, int stage)
@@ -296,11 +295,9 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
       }
       __syncthreads();
       flash_softmax_update<Cfg>(s_frag, o_frag, m_i, l_i); 
-      __syncthreads();
-
       pack_p_frag<Cfg>(s_frag, p_frag_packed);
-      __syncthreads();
 
+      __syncthreads();
 
 
       for (int k = 0; k < Cfg::warp_L_kv/Cfg::mma_k; k++)
@@ -318,7 +315,6 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
       }
 
     }
-    __syncthreads();
   };
 
 
@@ -335,8 +331,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     int current_consume_parity = (blkv /Cfg::kv_stages) % 2; 
     __syncthreads(); 
     TMA_LOAD_K_V(next_load_idx,next_load_stage); 
-    if(w == 0) mbarrier_wait_parity(KVs_bar + (current_consume_stage*8),current_consume_parity);
-    __syncthreads();
+    mbarrier_wait_parity(KVs_bar + (current_consume_stage*8),current_consume_parity);
     consume(current_consume_stage); 
   }
 
@@ -346,8 +341,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     int current_consume_stage = blkv % Cfg::kv_stages; 
     int current_consume_parity = (blkv /Cfg::kv_stages) % 2; 
     __syncthreads(); 
-    if (w == 0) mbarrier_wait_parity(KVs_bar + (current_consume_stage*8),current_consume_parity);
-    __syncthreads();
+    mbarrier_wait_parity(KVs_bar + (current_consume_stage*8),current_consume_parity);
     consume(current_consume_stage); 
   }
 

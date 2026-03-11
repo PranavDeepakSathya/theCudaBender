@@ -9,7 +9,8 @@ ext = load(
     sources=["export.cu"],
     extra_cuda_cflags=[
         "-arch=sm_120",
-        "-O3"
+        "-O3",
+        "--use_fast_math"
     ],
     extra_cflags=["-O3"],
     extra_ldflags=["-lcuda"],
