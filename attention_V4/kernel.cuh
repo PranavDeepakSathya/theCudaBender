@@ -169,9 +169,10 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
 
   if (t == 0)
   { 
-    mbarrier_init(Qs_bar,Cfg::block_size); 
+    mbarrier_init(Qs_bar, 32); 
     for (int i = 0; i < Cfg::kv_stages; i++)
-      mbarrier_init(KVs_bar + (8*i),Cfg::block_size); 
+      mbarrier_init(KVs_bar + (8*i), 32); 
+    asm volatile("fence.mbarrier_init.release.cluster;");  
   }
   __syncthreads();
 
@@ -198,15 +199,19 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
       l_i[m][0] = 0.f;
       l_i[m][1] = 0.f;
   }
+  if (w == 0)
+  {   
+    if (t == 0)
+    { 
+      mbarrier_arrive_expect_tx(Qs_bar, Cfg::Qs_bytes);
+      cp_async_bulk_tensor_3d(Qs,&q_map,0,block_start_lq,block_start_BH,Qs_bar);
 
-  if (t == 0)
-  {
-    cp_async_bulk_tensor_3d(Qs,&q_map,0,block_start_lq,block_start_BH,Qs_bar);
-    mbarrier_arrive_expect_tx(Qs_bar, Cfg::Qs_bytes);
+    }
+    else mbarrier_arrive(Qs_bar);
   }
-  else mbarrier_arrive(Qs_bar); 
+  __syncthreads();
 
-  mbarrier_wait_parity(Qs_bar,0); 
+  if (w == 0) mbarrier_wait_parity(Qs_bar,0); 
   __syncthreads();
 
   for (int m = 0; m< Cfg::warp_L_q/Cfg::mma_m; m++)
@@ -218,19 +223,24 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     }
   }
   __syncthreads(); 
-
+  tma_fence();
   int parity = 0; 
 
   auto TMA_LOAD_K_V = [&](int blkv, int stage)
   {
-    if (t == 0)
+    if (w == 0)
     {
-      cp_async_bulk_tensor_3d(Ks + (stage*Cfg::Ks_bytes) , &k_map, 0, (2*blkv*Cfg::block_L_kv),block_start_BH,KVs_bar + (stage*8));
-      cp_async_bulk_tensor_3d(Vs + (stage*Cfg::Vs_bytes),&v_map,blkv*Cfg::block_L_kv,0,block_start_BH, KVs_bar + (stage*8));
-      mbarrier_arrive_expect_tx(KVs_bar + (stage*8), Cfg::Ks_bytes + Cfg::Vs_bytes);
+      if (l == 0)
+        {
+          mbarrier_arrive_expect_tx(KVs_bar + (stage*8), Cfg::Ks_bytes + Cfg::Vs_bytes);
+          cp_async_bulk_tensor_3d(Ks + (stage*Cfg::Ks_bytes) , &k_map, 0, (2*blkv*Cfg::block_L_kv),block_start_BH,KVs_bar + (stage*8));
+          cp_async_bulk_tensor_3d(Vs + (stage*Cfg::Vs_bytes),&v_map,blkv*Cfg::block_L_kv,0,block_start_BH, KVs_bar + (stage*8));
+        }
+        else mbarrier_arrive(KVs_bar + (stage*8)); 
     }
-    else mbarrier_arrive(KVs_bar + (stage*8)); 
+
     __syncthreads();
+
   };
 
   auto consume = [&](int stage) 
@@ -325,7 +335,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     int current_consume_parity = (blkv /Cfg::kv_stages) % 2; 
     __syncthreads(); 
     TMA_LOAD_K_V(next_load_idx,next_load_stage); 
-    mbarrier_wait_parity(KVs_bar + (current_consume_stage*8),current_consume_parity);
+    if(w == 0) mbarrier_wait_parity(KVs_bar + (current_consume_stage*8),current_consume_parity);
     __syncthreads();
     consume(current_consume_stage); 
   }
@@ -336,7 +346,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     int current_consume_stage = blkv % Cfg::kv_stages; 
     int current_consume_parity = (blkv /Cfg::kv_stages) % 2; 
     __syncthreads(); 
-    mbarrier_wait_parity(KVs_bar + (current_consume_stage*8),current_consume_parity);
+    if (w == 0) mbarrier_wait_parity(KVs_bar + (current_consume_stage*8),current_consume_parity);
     __syncthreads();
     consume(current_consume_stage); 
   }
