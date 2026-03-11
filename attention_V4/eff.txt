@@ -1,0 +1,23 @@
+[1/2] /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output export.cuda.o.d -DTORCH_EXTENSION_NAME=attention_warp -DTORCH_API_INCLUDE_EXTENSION_H -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /usr/local/cuda/include -isystem /venv/main/include/python3.12 -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -arch=sm_120 -O3 -std=c++17 -c /root/theCudaBender/attention_V4/export.cu -o export.cuda.o 
+/root/theCudaBender/attention_V4/kernel.cuh(222): warning #177-D: variable "parity" was declared but never referenced
+    int parity = 0;
+        ^
+          detected during instantiation of "void launch_attention<Cfg>(NaiveLauncher &, CUtensorMap, CUtensorMap, CUtensorMap, float *) [with Cfg=Cfg]" at line 109 of /root/theCudaBender/attention_V4/export.cu
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+[2/2] c++ export.cuda.o -shared -lcuda -L/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/lib -lc10 -lc10_cuda -ltorch_cpu -ltorch_cuda -ltorch -ltorch_python -L/usr/local/cuda/lib64 -lcudart -o attention_warp.so
+BH=32, LQ=8192, D=128, LK=4096
+Max abs error: 0.00023340247571468353
+Mean abs error: 3.193166048731655e-05
+0 0.04303319752216339
+1 0.00023574195802211761
+2 0.000265282578766346
+3 0.00023668259382247925
+4 0.00025345757603645325
+5 0.00025083497166633606
+6 0.00023860111832618713
+7 0.0002395324409008026
+8 0.02943342924118042
+9 0.06650209426879883
+Effective TFLOP/s: 205.42218841763977

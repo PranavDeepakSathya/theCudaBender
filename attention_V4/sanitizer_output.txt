@@ -1,0 +1,29 @@
+========= COMPUTE-SANITIZER
+[1/2] /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output export.cuda.o.d -DTORCH_EXTENSION_NAME=attention_warp -DTORCH_API_INCLUDE_EXTENSION_H -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /usr/local/cuda/include -isystem /venv/main/include/python3.12 -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -arch=sm_120 -O3 --use-fast-math -std=c++17 -c /root/theCudaBender/attention_V4/export.cu -o export.cuda.o 
+FAILED: export.cuda.o 
+/usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output export.cuda.o.d -DTORCH_EXTENSION_NAME=attention_warp -DTORCH_API_INCLUDE_EXTENSION_H -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /usr/local/cuda/include -isystem /venv/main/include/python3.12 -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -arch=sm_120 -O3 --use-fast-math -std=c++17 -c /root/theCudaBender/attention_V4/export.cu -o export.cuda.o 
+nvcc fatal   : Unknown option '--use-fast-math'
+ninja: build stopped: subcommand failed.
+Traceback (most recent call last):
+  File "/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2693, in _run_ninja_build
+    subprocess.run(
+  File "/venv/main/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['ninja', '-v']' returned non-zero exit status 1.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/theCudaBender/attention_V4/run.py", line 7, in <module>
+    ext = load(
+          ^^^^^
+  File "/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 1767, in load
+    return _jit_compile(
+           ^^^^^^^^^^^^^
+  File "/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2207, in _jit_compile
+    _write_ninja_file_and_build_library(
+  File "/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2362, in _write_ninja_file_and_build_library
+    _run_ninja_build(
+  File "/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2710, in _run_ninja_build
+    raise RuntimeError(message) from e
+RuntimeError: Error building extension 'attention_warp'

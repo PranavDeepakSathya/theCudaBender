@@ -155,7 +155,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   uint32_t smem = static_cast<uint32_t>(__cvta_generic_to_shared(smem_raw)); 
   uint32_t Qs = smem; 
   uint32_t Ks = smem;
-  uint32_t Vs = smem + (Cfg::Ks_bytes); 
+  uint32_t Vs = smem + (Cfg::Ks_total); 
   uint32_t Qs_bar = smem + Cfg::bar_start_offset; 
   uint32_t KVs_bar = Qs_bar + 8; 
 
@@ -170,7 +170,8 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   if (t == 0)
   { 
     mbarrier_init(Qs_bar,Cfg::block_size); 
-    mbarrier_init(KVs_bar,Cfg::block_size); 
+    for (int i = 0; i < Cfg::kv_stages; i++)
+      mbarrier_init(KVs_bar + (8*i),Cfg::block_size); 
   }
   __syncthreads();
 
@@ -206,6 +207,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   else mbarrier_arrive(Qs_bar); 
 
   mbarrier_wait_parity(Qs_bar,0); 
+  __syncthreads();
 
   for (int m = 0; m< Cfg::warp_L_q/Cfg::mma_m; m++)
   {
@@ -219,30 +221,39 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
 
   int parity = 0; 
 
-
-  for (int blkv = 0; blkv < Cfg::L_kv/Cfg::block_L_kv; blkv++)
+  auto TMA_LOAD_K_V = [&](int blkv, int stage)
   {
     if (t == 0)
     {
-      cp_async_bulk_tensor_3d(Ks,&k_map,0,(2*blkv*Cfg::block_L_kv),block_start_BH,KVs_bar);
-      cp_async_bulk_tensor_3d(Vs,&v_map,blkv*Cfg::block_L_kv,0,block_start_BH, KVs_bar);
-      mbarrier_arrive_expect_tx(KVs_bar, Cfg::Ks_bytes + Cfg::Vs_bytes);
+      cp_async_bulk_tensor_3d(Ks + (stage*Cfg::Ks_bytes) , &k_map, 0, (2*blkv*Cfg::block_L_kv),block_start_BH,KVs_bar + (stage*8));
+      cp_async_bulk_tensor_3d(Vs + (stage*Cfg::Vs_bytes),&v_map,blkv*Cfg::block_L_kv,0,block_start_BH, KVs_bar + (stage*8));
+      mbarrier_arrive_expect_tx(KVs_bar + (stage*8), Cfg::Ks_bytes + Cfg::Vs_bytes);
     }
-    else mbarrier_arrive(KVs_bar); 
+    else mbarrier_arrive(KVs_bar + (stage*8)); 
+    __syncthreads();
+  };
 
-    mbarrier_wait_parity(KVs_bar,parity);
-    parity ^=1; 
-
-
+  auto consume = [&](int stage) 
+  {
     for (int wlkv = 0; wlkv < Cfg::block_L_kv/Cfg::warp_L_kv; wlkv++)
     {
       float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::warp_L_kv/Cfg::mma_n][8] = {0.0};
+
       for (int k = 0; k < Cfg::D/Cfg::mma_k; k++)
       {
         for (int n = 0; n < Cfg::warp_L_kv/Cfg::mma_n; n++)
         {
-          uint32_t kt_ld_addr = Ks + compact_swizzle<Cfg::D_swizzle_num>(((wlkv*Cfg::warp_L_kv + n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::D + (k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16));
+          uint32_t kt_ld_addr = Ks + (stage*Cfg::Ks_bytes) +  compact_swizzle<Cfg::D_swizzle_num>(((wlkv*Cfg::warp_L_kv + n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::D + (k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16));
           wa::ldmatrix_m8n8_x4_b16(kt_frag[k][n], kt_ld_addr);
+        }
+      }
+
+      for (int k = 0; k < Cfg::warp_L_kv/Cfg::mma_k;k++)
+      {
+        for (int n = 0; n < Cfg::D/Cfg::mma_n; n++)
+        {
+          uint32_t v_ld_addr = Vs + (stage*Cfg::Vs_bytes) + compact_swizzle<Cfg::swizzle_num>(((n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::block_L_kv + (wlkv*Cfg::warp_L_kv + k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16));
+          wa::ldmatrix_m8n8_x4_b16(v_frag[k][n],v_ld_addr);
         }
       }
 
@@ -275,19 +286,12 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
       }
       __syncthreads();
       flash_softmax_update<Cfg>(s_frag, o_frag, m_i, l_i); 
-
+      __syncthreads();
 
       pack_p_frag<Cfg>(s_frag, p_frag_packed);
       __syncthreads();
 
-      for (int k = 0; k < Cfg::warp_L_kv/Cfg::mma_k;k++)
-      {
-        for (int n = 0; n < Cfg::D/Cfg::mma_n; n++)
-        {
-          uint32_t v_ld_addr = Vs + compact_swizzle<Cfg::swizzle_num>(((n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::block_L_kv + (wlkv*Cfg::warp_L_kv + k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16));
-          wa::ldmatrix_m8n8_x4_b16(v_frag[k][n],v_ld_addr);
-        }
-      }
+
 
       for (int k = 0; k < Cfg::warp_L_kv/Cfg::mma_k; k++)
       {
@@ -304,8 +308,40 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
       }
 
     }
+    __syncthreads();
+  };
 
+
+  for (int s = 0; s < Cfg::kv_stages-1; s++)
+  {
+    TMA_LOAD_K_V(s,s);
   }
+
+  for (int blkv = 0; blkv < (Cfg::L_kv/Cfg::block_L_kv) - (Cfg::kv_stages-1); blkv++)
+  {
+    int next_load_idx = blkv + Cfg::kv_stages - 1; 
+    int next_load_stage = next_load_idx % Cfg::kv_stages; 
+    int current_consume_stage = blkv % Cfg::kv_stages; 
+    int current_consume_parity = (blkv /Cfg::kv_stages) % 2; 
+    __syncthreads(); 
+    TMA_LOAD_K_V(next_load_idx,next_load_stage); 
+    mbarrier_wait_parity(KVs_bar + (current_consume_stage*8),current_consume_parity);
+    __syncthreads();
+    consume(current_consume_stage); 
+  }
+
+  for (int blkv = (Cfg::L_kv/Cfg::block_L_kv) - (Cfg::kv_stages-1); blkv < (Cfg::L_kv/Cfg::block_L_kv); blkv++)
+  {
+
+    int current_consume_stage = blkv % Cfg::kv_stages; 
+    int current_consume_parity = (blkv /Cfg::kv_stages) % 2; 
+    __syncthreads(); 
+    mbarrier_wait_parity(KVs_bar + (current_consume_stage*8),current_consume_parity);
+    __syncthreads();
+    consume(current_consume_stage); 
+  }
+
+
 
   __syncthreads();
   float2 *O2 = reinterpret_cast<float2*>(O); 
@@ -347,4 +383,4 @@ inline void launch_attention(
     launcher.launch(attention_kernel<Cfg>, q_map, k_map, v_map, O);
 }
 
-  
+   
