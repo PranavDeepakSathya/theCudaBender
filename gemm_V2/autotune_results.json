@@ -1,0 +1,1762 @@
+[
+  {
+    "hash": "706ccc3310e4",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 146.66387796840183,
+    "ms": 3.748863935470581
+  },
+  {
+    "hash": "1d84a9fab281",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 151.705756201709,
+    "ms": 3.6242719888687134
+  },
+  {
+    "hash": "d4494f4bad84",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 144.56971511902597,
+    "ms": 3.8031680583953857
+  },
+  {
+    "hash": "2a69b6f1769b",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.82738562497858,
+    "ms": 3.7703680992126465
+  },
+  {
+    "hash": "f87ceda81f19",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.4964456992162,
+    "ms": 3.7789440155029297
+  },
+  {
+    "hash": "e5856972a4fc",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 137.67546124329482,
+    "ms": 3.993615984916687
+  },
+  {
+    "hash": "134ee5b0a955",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.4718119226957,
+    "ms": 3.7795839309692383
+  },
+  {
+    "hash": "b8c12f90d2ce",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 139.75384254236724,
+    "ms": 3.934224009513855
+  },
+  {
+    "hash": "f536178630a6",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.3524416846034,
+    "ms": 3.7826879024505615
+  },
+  {
+    "hash": "83bc1e50b097",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 139.89493851766775,
+    "ms": 3.9302560091018677
+  },
+  {
+    "hash": "8fc7ef2d1b65",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.27378783035513,
+    "ms": 3.784735918045044
+  },
+  {
+    "hash": "cd6b26c53812",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.41540120205272,
+    "ms": 3.807231903076172
+  },
+  {
+    "hash": "090d6a39c4c0",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 139.6385611713556,
+    "ms": 3.9374719858169556
+  },
+  {
+    "hash": "bc968606be34",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 139.75441421883832,
+    "ms": 3.9342079162597656
+  },
+  {
+    "hash": "678ea605679e",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.34988248515796,
+    "ms": 3.8089599609375
+  },
+  {
+    "hash": "d84f1636e63b",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.00039009603995,
+    "ms": 3.791872024536133
+  },
+  {
+    "hash": "fba7d6008eb9",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 140.3812749395638,
+    "ms": 3.916640043258667
+  },
+  {
+    "hash": "f39d95c3c41a",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.33653834888065,
+    "ms": 3.809312105178833
+  },
+  {
+    "hash": "3e8e23ad7ac0",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 140.11797127362394,
+    "ms": 3.9240000247955322
+  },
+  {
+    "hash": "cd7daab5b9da",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 140.60528797883308,
+    "ms": 3.9104000329971313
+  },
+  {
+    "hash": "8d6e25cde6ba",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.02486445940622,
+    "ms": 3.791232109069824
+  },
+  {
+    "hash": "04368889027f",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 139.6998719471057,
+    "ms": 3.9357439279556274
+  },
+  {
+    "hash": "a578077c868b",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 137.71739611783343,
+    "ms": 3.9923999309539795
+  },
+  {
+    "hash": "d9af045614b7",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.80364650593438,
+    "ms": 3.7970240116119385
+  },
+  {
+    "hash": "e798db333982",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 140.706042881812,
+    "ms": 3.907599925994873
+  },
+  {
+    "hash": "3ccffcfc2218",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 140.4822780262492,
+    "ms": 3.9138240814208984
+  },
+  {
+    "hash": "9e1d5755d254",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.19240382088023,
+    "ms": 3.813119888305664
+  },
+  {
+    "hash": "f877ef0aa676",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 139.6436683471387,
+    "ms": 3.9373279809951782
+  },
+  {
+    "hash": "c7833505c864",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 139.80729121689643,
+    "ms": 3.9327199459075928
+  },
+  {
+    "hash": "85a611db4b16",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.2601980818561,
+    "ms": 3.8113279342651367
+  },
+  {
+    "hash": "4619a5f2910c",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.25898884476584,
+    "ms": 3.8113598823547363
+  },
+  {
+    "hash": "961251f9e740",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 140.11797127362394,
+    "ms": 3.9240000247955322
+  },
+  {
+    "hash": "ea9a73074df9",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.25414307564662,
+    "ms": 3.811487913131714
+  },
+  {
+    "hash": "94263c2ef3fd",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 141.3734705356689,
+    "ms": 3.8891520500183105
+  },
+  {
+    "hash": "511361ef47cb",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 141.29848282604775,
+    "ms": 3.8912160396575928
+  },
+  {
+    "hash": "d779564c104e",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 140.11511507368022,
+    "ms": 3.924080014228821
+  },
+  {
+    "hash": "e4d8b064a7a4",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.07874810406935,
+    "ms": 3.7898240089416504
+  },
+  {
+    "hash": "842aff75eeff",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.18877056386987,
+    "ms": 3.813215970993042
+  },
+  {
+    "hash": "633349bcfe63",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 141.33509619984196,
+    "ms": 3.8902080059051514
+  },
+  {
+    "hash": "33dd2e6777c7",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.1041215547261,
+    "ms": 3.815455913543701
+  },
+  {
+    "hash": "fd644ce18ba3",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.92089632634702,
+    "ms": 3.793951988220215
+  },
+  {
+    "hash": "e4e6b534470f",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.96124282472124,
+    "ms": 3.792896032333374
+  },
+  {
+    "hash": "d5407523f1fe",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.0383361787282,
+    "ms": 3.790879964828491
+  },
+  {
+    "hash": "fc84e33aeb70",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 144.99916841809443,
+    "ms": 3.7919039726257324
+  },
+  {
+    "hash": "74704ed610ec",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 141.37230920920408,
+    "ms": 3.88918399810791
+  },
+  {
+    "hash": "5aed3b8a2a5a",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 141.597164439,
+    "ms": 3.8830080032348633
+  },
+  {
+    "hash": "51ad9a520948",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 141.3734705356689,
+    "ms": 3.8891520500183105
+  },
+  {
+    "hash": "65dab5870c0a",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 141.670720232657,
+    "ms": 3.8809919357299805
+  },
+  {
+    "hash": "2dfaf153e92a",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.03955851677475,
+    "ms": 3.7908480167388916
+  },
+  {
+    "hash": "99c1e32d3e31",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.11673521523122,
+    "ms": 3.788831949234009
+  },
+  {
+    "hash": "e81c8d6c63a3",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 141.37172855312647,
+    "ms": 3.88919997215271
+  },
+  {
+    "hash": "ccf55c7a8665",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 145.11673521523122,
+    "ms": 3.788831949234009
+  },
+  {
+    "hash": "b1143b80fe21",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 196.60574867625698,
+    "ms": 2.7965760231018066
+  },
+  {
+    "hash": "f1785ed3afaa",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 147.4688670564728,
+    "ms": 3.7283999919891357
+  },
+  {
+    "hash": "31e4eb893141",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 197.11323203636846,
+    "ms": 2.7893760204315186
+  },
+  {
+    "hash": "94c9ae461ad4",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 141.447956597719,
+    "ms": 3.887104034423828
+  },
+  {
+    "hash": "5eae1716b604",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 205.6439790577631,
+    "ms": 2.673664093017578
+  },
+  {
+    "hash": "5eb442336226",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 205.96197216523336,
+    "ms": 2.6695361137390137
+  },
+  {
+    "hash": "30010c7fc61f",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 196.32044886259507,
+    "ms": 2.800640106201172
+  },
+  {
+    "hash": "8c2d23ca6244",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 207.23136269195766,
+    "ms": 2.653183937072754
+  },
+  {
+    "hash": "2462fe85d461",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 197.14829057169572,
+    "ms": 2.7888799905776978
+  },
+  {
+    "hash": "7aa790ecbee1",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 196.97538535845553,
+    "ms": 2.7913280725479126
+  },
+  {
+    "hash": "224db4c2e126",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 207.07152239550723,
+    "ms": 2.6552319526672363
+  },
+  {
+    "hash": "d52f1864101d",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 197.33055809277772,
+    "ms": 2.786303997039795
+  },
+  {
+    "hash": "e9ceb6f9367f",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 207.07650553737267,
+    "ms": 2.655168056488037
+  },
+  {
+    "hash": "741c48f9690c",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 205.89534074356476,
+    "ms": 2.670400023460388
+  },
+  {
+    "hash": "63c606efb02e",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 210.97828204612313,
+    "ms": 2.6060640811920166
+  },
+  {
+    "hash": "46d5b37027e4",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 209.1701259678952,
+    "ms": 2.628592014312744
+  },
+  {
+    "hash": "f5de8aa093a2",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 198.2526923592417,
+    "ms": 2.773344039916992
+  },
+  {
+    "hash": "9fcf486d1289",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 198.27786861166854,
+    "ms": 2.772991895675659
+  },
+  {
+    "hash": "3e68460e5d35",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 208.193073231563,
+    "ms": 2.640928030014038
+  },
+  {
+    "hash": "3c449c9a42a4",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 2,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 208.193073231563,
+    "ms": 2.640928030014038
+  },
+  {
+    "hash": "7aaf28f9a60e",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 190.87892053040326,
+    "ms": 2.8804800510406494
+  },
+  {
+    "hash": "ae0c67459c6a",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 204.8593901143184,
+    "ms": 2.683903932571411
+  },
+  {
+    "hash": "34d8f93d9d67",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 190.7411883684597,
+    "ms": 2.8825600147247314
+  },
+  {
+    "hash": "15185042a341",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 204.70318656573411,
+    "ms": 2.6859519481658936
+  },
+  {
+    "hash": "4237a4333281",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 190.87680347036056,
+    "ms": 2.880511999130249
+  },
+  {
+    "hash": "c630c7536690",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 204.62517408531048,
+    "ms": 2.6869759559631348
+  },
+  {
+    "hash": "2851e3047d9a",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 204.8593901143184,
+    "ms": 2.683903932571411
+  },
+  {
+    "hash": "e8602dbc4821",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 190.20276732482984,
+    "ms": 2.8907198905944824
+  },
+  {
+    "hash": "100eb1a47d99",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 204.46932737215988,
+    "ms": 2.689023971557617
+  },
+  {
+    "hash": "e7f13f6788a8",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 190.87680347036056,
+    "ms": 2.880511999130249
+  },
+  {
+    "hash": "fea3f88ddeeb",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 190.3354968334624,
+    "ms": 2.8887040615081787
+  },
+  {
+    "hash": "cc7d39e48f20",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 204.67391810382466,
+    "ms": 2.686336040496826
+  },
+  {
+    "hash": "1625232be778",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 190.44731844998824,
+    "ms": 2.88700795173645
+  },
+  {
+    "hash": "849a032d4b7a",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 204.70318656573411,
+    "ms": 2.6859519481658936
+  },
+  {
+    "hash": "68ac954514cc",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 190.32918190438616,
+    "ms": 2.8887999057769775
+  },
+  {
+    "hash": "92dc724a7ae4",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 204.46932737215988,
+    "ms": 2.689023971557617
+  },
+  {
+    "hash": "360d582d6531",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 204.39149300372753,
+    "ms": 2.6900479793548584
+  },
+  {
+    "hash": "794d59989f31",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 3,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 190.53812665279634,
+    "ms": 2.885632038116455
+  },
+  {
+    "hash": "165ff5bfe31c",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 191.55778192966724,
+    "ms": 2.870271921157837
+  },
+  {
+    "hash": "8e557b3967a8",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 193.3751930453091,
+    "ms": 2.8432960510253906
+  },
+  {
+    "hash": "5fb1477d665d",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 200.0508414165129,
+    "ms": 2.748415946960449
+  },
+  {
+    "hash": "4ced8e990043",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 200.91402094989778,
+    "ms": 2.7366080284118652
+  },
+  {
+    "hash": "d70d1dc6799b",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 201.55271854598354,
+    "ms": 2.727936029434204
+  },
+  {
+    "hash": "d3c80b8d3cbb",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 2,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 192.31140191533856,
+    "ms": 2.8590240478515625
+  },
+  {
+    "hash": "f1562a63cac5",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 199.82864571759865,
+    "ms": 2.751471996307373
+  },
+  {
+    "hash": "ee67cf2a395b",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 191.55670789527002,
+    "ms": 2.8702880144119263
+  },
+  {
+    "hash": "ad98725aad25",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 199.9379397169717,
+    "ms": 2.749967932701111
+  },
+  {
+    "hash": "91156a5c2512",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 200.8975772711911,
+    "ms": 2.736832022666931
+  },
+  {
+    "hash": "9dbf152ef0a3",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 191.73733869723293,
+    "ms": 2.867583990097046
+  },
+  {
+    "hash": "78dcb9d576f6",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 4,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 191.6924099880157,
+    "ms": 2.868256092071533
+  },
+  {
+    "hash": "fb92cef72848",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 191.1464899773616,
+    "ms": 2.876447916030884
+  },
+  {
+    "hash": "79d0cdcf1bd2",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 199.80425128528495,
+    "ms": 2.751807928085327
+  },
+  {
+    "hash": "687e38ecfba5",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 32
+    },
+    "tflops": 199.86583747827342,
+    "ms": 2.7509599924087524
+  },
+  {
+    "hash": "6874d473a987",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 4,
+      "BLOCK_K": 64
+    },
+    "tflops": 191.72771048237576,
+    "ms": 2.8677279949188232
+  },
+  {
+    "hash": "81e22a1e4d9b",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 64
+    },
+    "tflops": 191.47879695952105,
+    "ms": 2.8714559078216553
+  },
+  {
+    "hash": "7b5238fc743a",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 2,
+      "WARPS_PER_BLOCK_N": 4,
+      "BK_STAGES": 4,
+      "GROUP_M": 8,
+      "GROUP_N": 8,
+      "BLOCK_K": 32
+    },
+    "tflops": 199.82748559195994,
+    "ms": 2.751487970352173
+  },
+  {
+    "hash": "af924545ee2f",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 4,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 32
+    },
+    "tflops": 169.7017791447186,
+    "ms": 3.239936113357544
+  },
+  {
+    "hash": "a2616e8e06bb",
+    "cfg": {
+      "ACC_PER_WARP_M": 2,
+      "ACC_PER_WARP_N": 2,
+      "WARP_K_STAGES": 2,
+      "WARPS_PER_BLOCK_M": 4,
+      "WARPS_PER_BLOCK_N": 2,
+      "BK_STAGES": 2,
+      "GROUP_M": 2,
+      "GROUP_N": 2,
+      "BLOCK_K": 64
+    },
+    "tflops": 174.5354349255165,
+    "ms": 3.150207996368408
+  }
+]
