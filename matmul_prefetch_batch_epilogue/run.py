@@ -145,6 +145,34 @@ print("B stride:", B.stride(), "contig:", B.is_contiguous())
 print("C has NaN:", torch.isnan(C).any().item())
 
 print("\nDone.")
+
+
+# =========================
+# TORCH BASELINE
+# =========================
+
+def bench_torch_baseline(L, M, N, K, device="cuda"):
+    A_t    = torch.randn((L, M, K), device=device, dtype=torch.bfloat16).contiguous()
+    B_t    = torch.randn((L, K, N), device=device, dtype=torch.bfloat16).contiguous()
+    bias_t = torch.randn((N,),      device=device, dtype=torch.float32)
+
+    def eager():
+        return torch.nn.functional.silu(torch.bmm(A_t, B_t).float() + bias_t)
+
+    compiled = torch.compile(eager)
+    compiled()  # warm up compile
+
+    ms_eager    = triton.testing.do_bench(eager,    return_mode="median")
+    ms_compiled = triton.testing.do_bench(compiled, return_mode="median")
+
+    flops = 2 * L * M * N * K + L * M * N
+    def tflops(ms): return flops / (ms * 1e-3) / 1e12
+
+    print(f"\n=== torch baseline ===")
+    print(f"  eager    : {ms_eager:.4f} ms  {tflops(ms_eager):.2f} TFLOP/s")
+    print(f"  compiled : {ms_compiled:.4f} ms  {tflops(ms_compiled):.2f} TFLOP/s")
+
+bench_torch_baseline(L, M, N, K)
 print("\n=== Benchmark (Triton do_bench) ===")
 
 def run():
@@ -157,3 +185,4 @@ tflops = flops / (ms * 1e-3) / 1e12
 
 print(f"median time: {ms:.4f} ms")
 print(f"TFLOP/s : {tflops:.2f}")
+

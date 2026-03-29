@@ -46,10 +46,10 @@ static constexpr bool is_pow2(int x)
 
 struct GemmConfig
 {
-  static constexpr int M = 2048;
-  static constexpr int N = 2048;
+  static constexpr int M = 4096;
+  static constexpr int N = 4096;
   static constexpr int K = 4096;
-  static constexpr int L = 17;
+  static constexpr int L = 4;
 
   static constexpr int mma_m = 16;
   static constexpr int mma_n = 8;
