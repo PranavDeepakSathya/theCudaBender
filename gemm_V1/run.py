@@ -26,7 +26,7 @@ ATOMS_INC  = str(HERE.parent / "atoms")
 _bench_hash = hashlib.md5(Path(BENCH_SRC).read_bytes()).hexdigest()[:8]
 
 # ── shape ─────────────────────────────────────
-M, N, K = 8192, 8192, 4096
+M, N, K = 8192, 8192, 8192
 
 # ── search space ──────────────────────────────
 SPACE = {

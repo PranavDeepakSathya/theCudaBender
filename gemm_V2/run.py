@@ -27,7 +27,7 @@ _bench_hash = hashlib.md5(Path(BENCH_SRC).read_bytes()).hexdigest()[:8]
 # ── problem size — LLaMA attention proj ───────
 # L=4 heads/layers, M=4096 seq*batch, N=4096 out, K=4096 in
 # flops per call: 2*L*M*N*K + L*M*N (bias) + L*M*N (silu) ≈ 2*L*M*N*K
-L, M, N, K = 4, 4096, 4096, 4096
+L, M, N, K = 16, 4096, 4096, 4096
 
 # ── search space ──────────────────────────────
 SPACE = {
@@ -168,6 +168,12 @@ for i, (cfg_vals, h) in enumerate(compiled, 1):
 
     if lib.init_kernel() != 0:
         print(f"[{i}/{len(compiled)}] SKIP {cfg_vals} — invalid launch config")
+        continue
+
+    ret = lib.run_gemm(A_ptr, B_ptr, C_ptr, bias_ptr, a_ct, b_ct)
+    torch.cuda.synchronize()
+    if ret != 0:
+        print(f"[{i}/{len(compiled)}] SKIP {cfg_vals} — run_gemm error {ret}")
         continue
 
     try:
