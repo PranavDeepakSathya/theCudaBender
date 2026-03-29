@@ -14,7 +14,7 @@ using Cfg = GemmConfig;
 // ------------------------------------------------------------
 // GEMM entrypoint
 // ------------------------------------------------------------
-torch::Tensor gemm(torch::Tensor A, torch::Tensor B, torch::Tensor bias)
+torch::Tensor gemm(torch::Tensor A, torch::Tensor B)
 {
     TORCH_CHECK(A.is_cuda(), "A must be CUDA");
     TORCH_CHECK(B.is_cuda(), "B must be CUDA");
@@ -22,35 +22,30 @@ torch::Tensor gemm(torch::Tensor A, torch::Tensor B, torch::Tensor bias)
     TORCH_CHECK(A.dtype() == torch::kBFloat16, "A must be bf16");
     TORCH_CHECK(B.dtype() == torch::kBFloat16, "B must be bf16");
 
-    TORCH_CHECK(A.dim() == 3, "A must be 3D");
-    TORCH_CHECK(B.dim() == 3, "B must be 3D");
+    TORCH_CHECK(A.dim() == 2, "A must be 2D");
+    TORCH_CHECK(B.dim() == 2, "B must be 2D");
 
     TORCH_CHECK(A.is_contiguous(), "A must be contiguous row-major");
 
     // ---- HARD REQUIRE: B must be col-major ----
     TORCH_CHECK(
-        B.stride(1) == 1,
+        B.stride(0) == 1,
         "B must be column-major (stride0=1).\n"
         "Construct with:\n"
-        "  B = torch.randn((B,N,K), device='cuda', dtype=torch.bfloat16).t()\n"
+        "  B = torch.randn((N,K), device='cuda', dtype=torch.bfloat16).t()\n"
     );
-    TORCH_CHECK(A.size(0) == Cfg::L, "A.shape mismatch")
-    TORCH_CHECK(A.size(1) == Cfg::M, "A.shape mismatch");
-    TORCH_CHECK(A.size(2) == Cfg::K, "A.shape mismatch");
 
-    TORCH_CHECK(B.size(0) == Cfg::L, "B.shape mismatch");
-    TORCH_CHECK(B.size(1) == Cfg::K, "B.shape mismatch");
-    TORCH_CHECK(B.size(2) == Cfg::N, "B.shape mismatch");
+    TORCH_CHECK(A.size(0) == Cfg::M, "A.shape mismatch");
+    TORCH_CHECK(A.size(1) == Cfg::K, "A.shape mismatch");
 
-    TORCH_CHECK(bias.is_cuda(),  "bias must be CUDA");
-    TORCH_CHECK(bias.dtype() == torch::kFloat32, "bias must be float32");
-    TORCH_CHECK(bias.dim() == 1 && bias.size(0) == Cfg::N, "bias must be shape (N,)");
+    TORCH_CHECK(B.size(0) == Cfg::K, "B.shape mismatch");
+    TORCH_CHECK(B.size(1) == Cfg::N, "B.shape mismatch");
 
     // ------------------------------------------------------------
     // Allocate output
     // ------------------------------------------------------------
     auto C = torch::empty(
-        {Cfg::L, Cfg::M, Cfg::N},
+        {Cfg::M, Cfg::N},
         torch::TensorOptions()
             .device(A.device())
             .dtype(torch::kFloat32)
@@ -62,34 +57,25 @@ torch::Tensor gemm(torch::Tensor A, torch::Tensor B, torch::Tensor bias)
     nv_bfloat16* B_ptr =
         reinterpret_cast<nv_bfloat16*>(B.data_ptr<at::BFloat16>());
 
-    float* C_ptr    = C.data_ptr<float>();
-    float* bias_ptr = bias.data_ptr<float>();
+    float* C_ptr = C.data_ptr<float>();
 
     // ------------------------------------------------------------
     // Build TMA tensor maps
     // ------------------------------------------------------------
     CUtensorMap a_map =
-        TmaDescriptor<nv_bfloat16>::create_with_layout<3>(
+        TmaDescriptor<nv_bfloat16>::create_2d_row_major(
             A_ptr,
-            {(uint64_t)Cfg::L, (uint64_t)Cfg::M, (uint64_t)Cfg::K},
-            {1u, (uint32_t)Cfg::BM, (uint32_t)Cfg::BK},
-            {2, 1, 0},
-            Cfg::swizzle_mode,
-            CU_TENSOR_MAP_INTERLEAVE_NONE,
-            CU_TENSOR_MAP_L2_PROMOTION_NONE,
-            CU_TENSOR_MAP_FLOAT_OOB_FILL_NAN_REQUEST_ZERO_FMA
+            {Cfg::M, Cfg::K},
+            {Cfg::BM, Cfg::BK},
+            Cfg::swizzle_mode
         );
 
     CUtensorMap b_map =
-        TmaDescriptor<nv_bfloat16>::create_with_layout<3>(
+        TmaDescriptor<nv_bfloat16>::create_2d_col_major(
             B_ptr,
-            {(uint64_t)Cfg::L, (uint64_t)Cfg::K, (uint64_t)Cfg::N},
-            {1u, (uint32_t)Cfg::BK, (uint32_t)Cfg::BN},
-            {1, 2, 0},
-            Cfg::swizzle_mode,
-            CU_TENSOR_MAP_INTERLEAVE_NONE,
-            CU_TENSOR_MAP_L2_PROMOTION_NONE,
-            CU_TENSOR_MAP_FLOAT_OOB_FILL_NAN_REQUEST_ZERO_FMA
+            {Cfg::K, Cfg::N},
+            {Cfg::BK, Cfg::BN},
+            Cfg::swizzle_mode
         );
 
     // ------------------------------------------------------------
@@ -102,7 +88,7 @@ torch::Tensor gemm(torch::Tensor A, torch::Tensor B, torch::Tensor bias)
         Cfg::shared_bytes
     );
 
-    launch_matmul<Cfg>(launcher, a_map, b_map, C_ptr, bias_ptr);
+    launch_matmul<Cfg>(launcher, a_map, b_map, C_ptr);
 
     // ---- REQUIRED for autotuning ----
     C10_CUDA_KERNEL_LAUNCH_CHECK();
@@ -130,7 +116,7 @@ std::vector<int64_t> config_signature()
 // ------------------------------------------------------------
 std::vector<int64_t> shape()
 {
-    return {Cfg::L, Cfg::M, Cfg::N, Cfg::K};
+    return {Cfg::M, Cfg::N, Cfg::K};
 }
 
 // ------------------------------------------------------------
@@ -138,7 +124,7 @@ std::vector<int64_t> shape()
 // ------------------------------------------------------------
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
-    m.def("gemm", &gemm, "SM120 BF16 batched GEMM + bias (fp32 accumulate)");
+    m.def("gemm", &gemm, "SM120 BF16 GEMM (fp32 accumulate)");
     m.def("shape", &shape);
     m.def("config_signature", &config_signature);
 }

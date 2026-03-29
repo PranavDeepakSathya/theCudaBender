@@ -64,9 +64,10 @@ device = "cuda"
 L,M, N, K = ext.shape()
 print(f"\nUsing shape: L={L}, M={M}, N={N}, K={K}")
 
-A = torch.randn((L, M, K), device=device, dtype=torch.bfloat16).contiguous()
-B_rm = torch.randn((L,N, K), device=device, dtype=torch.bfloat16).contiguous()
-B = torch.transpose(B_rm,-2,-1)
+A    = torch.randn((L, M, K), device=device, dtype=torch.bfloat16).contiguous()
+B_rm = torch.randn((L, N, K), device=device, dtype=torch.bfloat16).contiguous()
+B    = torch.transpose(B_rm, -2, -1)
+bias = torch.randn((N,), device=device, dtype=torch.float32)
 
 
 # =========================
@@ -76,10 +77,10 @@ B = torch.transpose(B_rm,-2,-1)
 print("\n=== Correctness ===")
 
 torch.cuda.synchronize()
-C = ext.gemm(A, B)
+C = ext.gemm(A, B, bias)
 torch.cuda.synchronize()
 
-C_ref = A.float() @ B.float()
+C_ref = torch.nn.functional.silu(A.float() @ B.float() + bias)
 
 diff = (C.float() - C_ref).abs().flatten()
 
@@ -114,20 +115,20 @@ warmup = 20
 iters = 2000
 
 for _ in range(warmup):
-    ext.gemm(A, B)
+    ext.gemm(A, B, bias)
 
 torch.cuda.synchronize()
 t0 = time.time()
 
 for _ in range(iters):
-    ext.gemm(A, B)
+    ext.gemm(A, B, bias)
 
 torch.cuda.synchronize()
 t1 = time.time()
 
 avg_ms = (t1 - t0) * 1e3 / iters
 
-flops = 2.0 * L * M * N * K
+flops = 2.0 * L * M * N * K + L * M * N
 tflops = flops / ((avg_ms * 1e-3) * 1e12)
 
 print(f"Avg time: {avg_ms:.4f} ms")
@@ -147,11 +148,11 @@ print("\nDone.")
 print("\n=== Benchmark (Triton do_bench) ===")
 
 def run():
-    ext.gemm(A, B)
+    ext.gemm(A, B, bias)
 
-ms = triton.testing.do_bench(run,return_mode="median")
+ms = triton.testing.do_bench(run, return_mode="median")
 
-flops = 2.0 * L * M * N * K
+flops = (2.0 * L * M * N * K) + (4.0 * L * M * N)
 tflops = flops / (ms * 1e-3) / 1e12
 
 print(f"median time: {ms:.4f} ms")

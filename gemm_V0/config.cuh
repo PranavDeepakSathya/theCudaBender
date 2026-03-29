@@ -39,6 +39,18 @@
 #define BLOCK_K 64
 #endif
 
+#ifndef GEMM_M
+#define GEMM_M 4096
+#endif
+
+#ifndef GEMM_N
+#define GEMM_N 4096
+#endif
+
+#ifndef GEMM_K
+#define GEMM_K 4096
+#endif
+
 static constexpr bool is_pow2(int x)
 {
   return x > 1 && ((x & (x - 1)) == 0);
@@ -46,10 +58,9 @@ static constexpr bool is_pow2(int x)
 
 struct GemmConfig
 {
-  static constexpr int M = 2048;
-  static constexpr int N = 2048;
-  static constexpr int K = 4096;
-  static constexpr int L = 17;
+  static constexpr int M = GEMM_M;
+  static constexpr int N = GEMM_N;
+  static constexpr int K = GEMM_K;
 
   static constexpr int mma_m = 16;
   static constexpr int mma_n = 8;
@@ -78,7 +89,9 @@ struct GemmConfig
 
   static constexpr int bk_stages = BK_STAGES;
 
-  static constexpr int block_k_iters = (K + BK - 1) / BK;
+  static_assert(K % BK == 0);
+
+  static constexpr int block_k_iters = K / BK;
   static constexpr int warp_k_iters = BK/mma_k;
 
   static constexpr int num_warps =
@@ -103,18 +116,23 @@ struct GemmConfig
   //static_assert(shared_bytes <= 100 * 1024);
 
   static_assert(block_size < 1024);
+  static_assert(M % BM == 0);
+  static_assert(N % BN == 0);
 
-  static constexpr int GM = (M + BM - 1) / BM;
-  static constexpr int GN = (N + BN - 1) / BN;
+  static constexpr int GM = M / BM;
+  static constexpr int GN = N / BN;
 
-  static constexpr int grid_size = L * GM * GN;
+  
 
-  // clamp group sizes so GM/GN are always evenly covered
-  static constexpr int group_m = (GROUP_M <= GM) ? GROUP_M : GM;
-  static constexpr int group_n = (GROUP_N <= GN) ? GROUP_N : GN;
+  static constexpr int grid_size = GM * GN;
 
-  static_assert(GM % group_m == 0, "GROUP_M must divide GM = ceil(M/BM)");
-  static_assert(GN % group_n == 0, "GROUP_N must divide GN = ceil(N/BN)");
+  static constexpr int group_m = GROUP_M;
+  static constexpr int group_n = GROUP_N;
+
+  static_assert(GM % group_m == 0);
+  static_assert(GN % group_n == 0);
+  static_assert(group_m <= GM);
+  static_assert(group_n <= GN);
 
   static constexpr int blocks_per_group = group_m * group_n;
 

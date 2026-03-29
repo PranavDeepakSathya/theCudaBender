@@ -3,6 +3,16 @@
 #include <cuda_bf16.h>
 #include <cstdint>
 
+#ifndef GEMM_M
+#define GEMM_M 4096
+#endif
+#ifndef GEMM_N
+#define GEMM_N 4096
+#endif
+#ifndef GEMM_K
+#define GEMM_K 4096
+#endif
+
 #ifndef ACC_PER_WARP_M
 #define ACC_PER_WARP_M 4
 #endif
@@ -11,7 +21,7 @@
 #define ACC_PER_WARP_N 4
 #endif
 
-#ifndef WARP_K_STAGES 
+#ifndef WARP_K_STAGES
 #define WARP_K_STAGES 2
 #endif
 
@@ -46,10 +56,9 @@ static constexpr bool is_pow2(int x)
 
 struct GemmConfig
 {
-  static constexpr int M = 2048;
-  static constexpr int N = 2048;
-  static constexpr int K = 4096;
-  static constexpr int L = 17;
+  static constexpr int M = GEMM_M;
+  static constexpr int N = GEMM_N;
+  static constexpr int K = GEMM_K;
 
   static constexpr int mma_m = 16;
   static constexpr int mma_n = 8;
@@ -70,7 +79,7 @@ struct GemmConfig
   static constexpr int WM = mma_m * acc_per_warp_m;
   static constexpr int WN = mma_n * acc_per_warp_n;
   static constexpr int BK = BLOCK_K;
-    static_assert(is_pow2(BK));
+  static_assert(is_pow2(BK));
   static_assert(warp_k_stages <= BK/mma_k);
 
   static constexpr int BM = WM * warps_per_block_m;
@@ -78,8 +87,9 @@ struct GemmConfig
 
   static constexpr int bk_stages = BK_STAGES;
 
-  static constexpr int block_k_iters = (K + BK - 1) / BK;
-  static constexpr int warp_k_iters = BK/mma_k;
+  static_assert(K % BK == 0);
+
+  static constexpr int block_k_iters = K / BK;
 
   static constexpr int num_warps =
       (warps_per_block_m * warps_per_block_n);
@@ -100,21 +110,22 @@ struct GemmConfig
   static constexpr uint32_t shared_bytes =
       ((As_bytes + Bs_bytes) * bk_stages) + smem_overhead;
 
-  //static_assert(shared_bytes <= 100 * 1024);
-
   static_assert(block_size < 1024);
+  static_assert(M % BM == 0);
+  static_assert(N % BN == 0);
 
-  static constexpr int GM = (M + BM - 1) / BM;
-  static constexpr int GN = (N + BN - 1) / BN;
+  static constexpr int GM = M / BM;
+  static constexpr int GN = N / BN;
 
-  static constexpr int grid_size = L * GM * GN;
+  static constexpr int grid_size = GM * GN;
 
-  // clamp group sizes so GM/GN are always evenly covered
-  static constexpr int group_m = (GROUP_M <= GM) ? GROUP_M : GM;
-  static constexpr int group_n = (GROUP_N <= GN) ? GROUP_N : GN;
+  static constexpr int group_m = GROUP_M;
+  static constexpr int group_n = GROUP_N;
 
-  static_assert(GM % group_m == 0, "GROUP_M must divide GM = ceil(M/BM)");
-  static_assert(GN % group_n == 0, "GROUP_N must divide GN = ceil(N/BN)");
+  static_assert(GM % group_m == 0);
+  static_assert(GN % group_n == 0);
+  static_assert(group_m <= GM);
+  static_assert(group_n <= GN);
 
   static constexpr int blocks_per_group = group_m * group_n;
 
@@ -129,7 +140,6 @@ struct GemmConfig
       (ld_bytes == 64)  ? CU_TENSOR_MAP_SWIZZLE_64B  :
       (ld_bytes == 128) ? CU_TENSOR_MAP_SWIZZLE_128B :
                           CU_TENSOR_MAP_SWIZZLE_NONE;
-
 
   static constexpr int swizzle_num =
       (swizzle_mode == CU_TENSOR_MAP_SWIZZLE_32B)  ? 128  :

@@ -14,29 +14,29 @@ BK_STAGES = 2
 GROUP_M = 4
 GROUP_N = 8
 BLOCK_K = 64
-[1/2] /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output export.cuda.o.d -DTORCH_EXTENSION_NAME=matmul_V0 -DTORCH_API_INCLUDE_EXTENSION_H -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /usr/local/cuda/include -isystem /venv/main/include/python3.12 -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -arch=sm_120 -O3 --use_fast_math -DACC_PER_WARP_M=4 -DACC_PER_WARP_N=4 -DWARP_K_STAGES=2 -DWARPS_PER_BLOCK_M=2 -DWARPS_PER_BLOCK_N=2 -DBK_STAGES=2 -DGROUP_M=4 -DGROUP_N=8 -DBLOCK_K=64 -std=c++17 -c /root/theCudaBender/matmul_prefetch_batch_epilogue/export.cu -o export.cuda.o 
+[1/2] /usr/local/cuda/bin/nvcc -MD -MF export.cuda.o.d -DTORCH_EXTENSION_NAME=matmul_V0 -DTORCH_API_INCLUDE_EXTENSION_H -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /usr/local/cuda/include -isystem /venv/main/include/python3.12 -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -arch=sm_120 -O3 --use_fast_math -DACC_PER_WARP_M=4 -DACC_PER_WARP_N=4 -DWARP_K_STAGES=2 -DWARPS_PER_BLOCK_M=2 -DWARPS_PER_BLOCK_N=2 -DBK_STAGES=2 -DGROUP_M=4 -DGROUP_N=8 -DBLOCK_K=64 -std=c++17 -c /root/theCudaBender/matmul_prefetch_batch_epilogue/export.cu -o export.cuda.o 
 [2/2] c++ export.cuda.o -shared -lcuda -L/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/lib -lc10 -lc10_cuda -ltorch_cpu -ltorch_cuda -ltorch -ltorch_python -L/usr/local/cuda/lib64 -lcudart -o matmul_V0.so
 
-Using shape: L=4, M=4096, N=4096, K=4096
+Using shape: L=17, M=2048, N=2048, K=4096
 
 === Correctness ===
 
 === Error Stats (abs, sampled if large) ===
-Max  : 2.563477e-03
-Mean : 2.174057e-04
-P99  : 8.087158e-04
+Max  : 2.441406e-03
+Mean : 1.090039e-04
+P99  : 7.019043e-04
 
 === Benchmark ===
-Avg time: 2.3572 ms
-TFLOP/s : 233.22
+Avg time: 2.6169 ms
+TFLOP/s : 223.23
 
 === Tensor Debug ===
-A stride: (16777216, 4096, 1) contig: True
-B stride: (16777216, 1, 4096) contig: False
+A stride: (8388608, 4096, 1) contig: True
+B stride: (8388608, 1, 4096) contig: False
 C has NaN: False
 
 Done.
 
 === Benchmark (Triton do_bench) ===
-median time: 2.2866 ms
-TFLOP/s : 240.43
+median time: 2.4956 ms
+TFLOP/s : 234.17

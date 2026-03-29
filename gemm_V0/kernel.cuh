@@ -12,7 +12,7 @@ template <class Cfg>
 __global__ void matmul_kernel(
     __grid_constant__ const CUtensorMap a_map,
     __grid_constant__ const CUtensorMap b_map,
-    float* C, float* bias
+    float* C
 )
 
 {
@@ -23,16 +23,15 @@ __global__ void matmul_kernel(
   int w = t/32; 
   int l = t % 32; 
   int block_start_m, block_start_n; 
-  int b_2d = b % (Cfg::GM*Cfg::GN);
-  int batch_dim = b / (Cfg::GM*Cfg::GN);
-
-  tile_sched::block_swizzle<Cfg::group_m, Cfg::group_n, Cfg::blocks_per_group, Cfg::G_outer_M, Cfg::G_outer_N, Cfg::BM,Cfg::BN>(b_2d,block_start_m,block_start_n);
+  tile_sched::block_swizzle<Cfg::group_m, Cfg::group_n, Cfg::blocks_per_group, Cfg::G_outer_M, Cfg::G_outer_N, Cfg::BM,Cfg::BN>(b,block_start_m,block_start_n);
   int warp_start_m = (w/Cfg::warps_per_block_n)*Cfg::WM;
   int warp_start_n = (w%Cfg::warps_per_block_n)*Cfg::WN;
   int C_row_start = block_start_m + warp_start_m + (l/4);
   int C_col_start = block_start_n + warp_start_n + 2*(l%4);
   uint32_t a_ld_base = ((warp_start_m + (l%16))*Cfg::BK + (8*(l/16)))*sizeof(nv_bfloat16);
   uint32_t b_ld_base = ((warp_start_n + ((l%8)+(8*(l/16))))*Cfg::BK + (8*((l/8)%2)))*sizeof(nv_bfloat16);
+  float2* C2 = reinterpret_cast<float2*>(C);
+  int ldc2 = Cfg::N/2;
   uint32_t ra[Cfg::warp_k_stages][Cfg::acc_per_warp_m][4];
   uint32_t rb[Cfg::warp_k_stages][Cfg::acc_per_warp_n][2];
   float rc[Cfg::acc_per_warp_m][Cfg::acc_per_warp_n][4] = {0.0};
@@ -51,8 +50,8 @@ __global__ void matmul_kernel(
   {
     if (l == 0)
     {
-      cp_async_bulk_tensor_3d(smem.A(stage), &a_map, bk_idx*Cfg::BK, block_start_m,batch_dim, smem.full(stage));
-      cp_async_bulk_tensor_3d(smem.B(stage), &b_map, bk_idx*Cfg::BK, block_start_n,batch_dim, smem.full(stage));
+      cp_async_bulk_tensor_2d(smem.A(stage), &a_map, bk_idx*Cfg::BK, block_start_m, smem.full(stage));
+      cp_async_bulk_tensor_2d(smem.B(stage), &b_map, bk_idx*Cfg::BK, block_start_n, smem.full(stage));
       mbarrier_arrive_expect_tx(smem.full(stage), Cfg::As_bytes + Cfg::Bs_bytes);
     }
     else 
@@ -102,21 +101,9 @@ __global__ void matmul_kernel(
     }
   };
 
-  auto silu = [](float x) { return x / (1.0f + __expf(-x)); };
-
-  float2* C2    = reinterpret_cast<float2*>(C);
-  float2* bias2 = reinterpret_cast<float2*>(bias);
-  int ldc2 = Cfg::N/2;
-  float2 r_bias[Cfg::acc_per_warp_n];
 
   auto store_c = [&](float rc[Cfg::acc_per_warp_m][Cfg::acc_per_warp_n][4])
   {
-    for (int n = 0; n < Cfg::acc_per_warp_n; n++)
-    {
-      int C_col = (C_col_start + (n*Cfg::mma_n))/2;
-      r_bias[n] = bias2[C_col];
-    }
-
     #pragma unroll
     for (int m = 0; m < Cfg::acc_per_warp_m; m++)
     {
@@ -125,10 +112,10 @@ __global__ void matmul_kernel(
       {
         int C_row = C_row_start + (m*Cfg::mma_m);
         int C_col = (C_col_start + (n*Cfg::mma_n))/2;
-        float2 v0 = {silu(rc[m][n][0] + r_bias[n].x), silu(rc[m][n][1] + r_bias[n].y)};
-        float2 v1 = {silu(rc[m][n][2] + r_bias[n].x), silu(rc[m][n][3] + r_bias[n].y)};
-        C2[(batch_dim*ldc2*Cfg::M) + (C_row)*ldc2 + (C_col)] = v0;
-        C2[(batch_dim*ldc2*Cfg::M) + (C_row+8)*ldc2 + (C_col)] = v1;
+        float2 v0 = {rc[m][n][0], rc[m][n][1]}; 
+        float2 v1 = {rc[m][n][2], rc[m][n][3]}; 
+        C2[(C_row)*ldc2 + (C_col)] = v0; 
+        C2[(C_row+8)*ldc2 + (C_col)] = v1;
       }
     }
   };
@@ -256,9 +243,9 @@ inline void launch_matmul(
     NaiveLauncher& launcher,
     CUtensorMap a_map,
     CUtensorMap b_map,
-    float* C_dev,
-    float* bias_dev
+    float* C_dev
 )
+
 {
-  launcher.launch(matmul_kernel<Cfg>, a_map, b_map, C_dev, bias_dev);
+  launcher.launch(matmul_kernel<Cfg>, a_map,b_map,C_dev);
 }

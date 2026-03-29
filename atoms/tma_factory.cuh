@@ -94,7 +94,8 @@ public:
         const std::array<int, Rank>& layout, // fastest → slowest axis indices
         CUtensorMapSwizzle swizzle = CU_TENSOR_MAP_SWIZZLE_NONE,
         CUtensorMapInterleave interleave = CU_TENSOR_MAP_INTERLEAVE_NONE,
-        CUtensorMapL2promotion l2_promo = CU_TENSOR_MAP_L2_PROMOTION_NONE)
+        CUtensorMapL2promotion l2_promo = CU_TENSOR_MAP_L2_PROMOTION_NONE,
+        CUtensorMapFloatOOBfill oob_fill = CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE)
     {
         uint64_t g_dims[Rank];
         uint64_t g_strides[Rank - 1];
@@ -125,7 +126,8 @@ public:
             e_strides,
             swizzle,
             interleave,
-            l2_promo
+            l2_promo,
+            oob_fill
         );
     }
 
@@ -141,11 +143,12 @@ public:
         uint32_t* element_strides,  // [1, 1, ...]
         CUtensorMapSwizzle swizzle,
         CUtensorMapInterleave interleave,
-        CUtensorMapL2promotion l2_promo
+        CUtensorMapL2promotion l2_promo,
+        CUtensorMapFloatOOBfill oob_fill = CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE
     ) {
         CUtensorMap tma_map{};
         auto encoder = TmaLoader::get_encoder();
-        
+
         CUresult res = encoder(
             &tma_map,
             get_data_type(),
@@ -158,7 +161,7 @@ public:
             interleave,
             swizzle,
             l2_promo,
-            CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE
+            oob_fill
         );
 
         if (res != CUDA_SUCCESS) {
