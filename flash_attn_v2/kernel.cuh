@@ -153,7 +153,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   uint32_t smem = static_cast<uint32_t>(__cvta_generic_to_shared(smem_raw)); 
   uint32_t Qs = smem; 
   uint32_t Ks = smem; 
-  uint32_t Vs = smem + Cfg::Ks_bytes; 
+  uint32_t Vs = smem; 
   uint32_t q_bar = smem + Cfg::bar_start; 
   uint32_t k_bar = q_bar + 8; 
   uint32_t v_bar = k_bar + 8; 
@@ -331,14 +331,13 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     __syncthreads();
     TMA_LOAD_K(blkv); 
     mbarrier_wait_parity(k_bar, parity); 
-    K_smem_rmem(kt_frag); 
+    K_smem_rmem(kt_frag);
+    __syncthreads(); //wait for kt_frag to get into rmem  
+    TMA_LOAD_V(blkv); 
     mma_Q_KT_scale(s_frag, q_frag, kt_frag);
-
     flash_softmax_update<Cfg>(s_frag, o_frag, m_i, l_i); 
-
     pack_p_frag<Cfg>(s_frag, p_frag_packed);
 
-    TMA_LOAD_V(blkv); 
     mbarrier_wait_parity(v_bar, parity); 
     V_smem_rmem(v_frag);
     mma_P_V(o_frag,p_frag_packed,v_frag);

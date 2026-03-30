@@ -1,16 +1,16 @@
 [1/2] /usr/local/cuda/bin/nvcc -MD -MF export.cuda.o.d -DTORCH_EXTENSION_NAME=attention_warp -DTORCH_API_INCLUDE_EXTENSION_H -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /usr/local/cuda/include -isystem /venv/main/include/python3.12 -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -arch=sm_120 -O3 --use_fast_math -std=c++17 -c /root/theCudaBender/flash_attn_v0/export.cu -o export.cuda.o 
 [2/2] c++ export.cuda.o -shared -lcuda -L/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/lib -lc10 -lc10_cuda -ltorch_cpu -ltorch_cuda -ltorch -ltorch_python -L/usr/local/cuda/lib64 -lcudart -o attention_warp.so
 BH=32, LQ=8192, D=128, LK=4096
-Max abs error: 0.00023340247571468353
-Mean abs error: 3.193166048731655e-05
-0 0.00023340247571468353
-1 0.00023574195802211761
-2 0.000265282578766346
-3 0.00023668259382247925
-4 0.00025345757603645325
-5 0.00025083497166633606
-6 0.00023860111832618713
-7 0.0002395324409008026
-8 0.0002374555915594101
-9 0.00024531222879886627
-Effective TFLOP/s: 166.93747050892924
+Max abs error: 0.00023698434233665466
+Mean abs error: 3.196690522599965e-05
+0 0.00023698434233665466
+1 0.00023366883397102356
+2 0.00023968005552887917
+3 0.0002457480877637863
+4 0.0002492666244506836
+5 0.0002527879551053047
+6 0.00024308636784553528
+7 0.000232769176363945
+8 0.00023754872381687164
+9 0.00024391710758209229
+Effective TFLOP/s: 148.75891133408433
