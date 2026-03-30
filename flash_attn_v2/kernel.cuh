@@ -220,53 +220,53 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   }
   __syncthreads(); 
   
-  auto TMA_LOAD_K = [&](int blkv)
+  auto TMA_LOAD_K = [&](int blkv, int stage)
   {
     if (w == 0)
     {
       if (l == 0)
       {
         mbarrier_arrive_expect_tx(k_bar, Cfg::Ks_bytes);
-        cp_async_bulk_tensor_3d(Ks, &k_map, 0, 2*blkv*Cfg::block_L_kv, block_start_BH, k_bar);
+        cp_async_bulk_tensor_3d(Ks + (stage*Cfg::Ks_bytes), &k_map, 0, 2*blkv*Cfg::block_L_kv, block_start_BH, k_bar);
       }
       else mbarrier_arrive(k_bar);
     }
     __syncthreads();
   };
 
-  auto TMA_LOAD_V = [&](int blkv) 
+  auto TMA_LOAD_V = [&](int blkv, int stage) 
   {
     if (w == 0)
     {
       if (l == 0)
       {
         mbarrier_arrive_expect_tx(v_bar, Cfg::Vs_bytes);
-        cp_async_bulk_tensor_3d(Vs, &v_map, blkv*Cfg::block_L_kv, 0, block_start_BH, v_bar);
+        cp_async_bulk_tensor_3d(Vs + (stage*Cfg::Vs_bytes), &v_map, blkv*Cfg::block_L_kv, 0, block_start_BH, v_bar);
       }
       else mbarrier_arrive(v_bar);
 
     }
     __syncthreads();
   };
-  auto K_smem_rmem = [&](uint32_t kt_frag[Cfg::D/Cfg::mma_k][Cfg::block_L_kv/Cfg::mma_n][4])
+  auto K_smem_rmem = [&](uint32_t kt_frag[Cfg::D/Cfg::mma_k][Cfg::block_L_kv/Cfg::mma_n][4], int stage)
   {
     for (int k = 0; k < Cfg::D/Cfg::mma_k; k++)
     {
       for (int n = 0; n < Cfg::block_L_kv/Cfg::mma_n; n++)
       {
-        uint32_t kt_ld_addr = Ks + compact_swizzle<Cfg::D_swizzle_num>(((n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::D + (k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16));
+        uint32_t kt_ld_addr = Ks + (stage*Cfg::Ks_bytes) +  compact_swizzle<Cfg::D_swizzle_num>(((n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::D + (k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16));
         wa::ldmatrix_m8n8_x4_b16(kt_frag[k][n], kt_ld_addr);
       }
     }
   };
 
-  auto V_smem_rmem = [&](uint32_t v_frag[Cfg::block_L_kv/Cfg::mma_k][Cfg::D/Cfg::mma_n][4])
+  auto V_smem_rmem = [&](uint32_t v_frag[Cfg::block_L_kv/Cfg::mma_k][Cfg::D/Cfg::mma_n][4], int stage)
   {
     for (int k = 0; k < Cfg::block_L_kv/Cfg::mma_k;k++)
     {
       for (int n = 0; n < Cfg::D/Cfg::mma_n; n++)
       {
-        uint32_t v_ld_addr = Vs + compact_swizzle<Cfg::swizzle_num>(((n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::block_L_kv + (k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16));
+        uint32_t v_ld_addr = Vs + (stage*Cfg::Vs_bytes) + compact_swizzle<Cfg::swizzle_num>(((n*Cfg::mma_n + ((l%8)+(8*(l/16))))*Cfg::block_L_kv + (k*Cfg::mma_k + (8*((l/8)%2))))*sizeof(nv_bfloat16));
         wa::ldmatrix_m8n8_x4_b16(v_frag[k][n],v_ld_addr);
       }
     }
@@ -325,27 +325,45 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
 
   int parity = 0; 
 
-  for (int blkv = 0; blkv < Cfg::L_kv/Cfg::block_L_kv; blkv++)
+  //prologue 
+  TMA_LOAD_K(0,0); 
+  //1TMA in flight
+  
+  for (int blkv = 0; blkv < (Cfg::L_kv/Cfg::block_L_kv) - 1; blkv++)
   {
     float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::block_L_kv/Cfg::mma_n][8] = {0.0}; 
     __syncthreads();
-    TMA_LOAD_K(blkv); 
-    mbarrier_wait_parity(k_bar, parity); 
-    K_smem_rmem(kt_frag);
+    TMA_LOAD_V(blkv, 1);//2TMAs in flight 
+    mbarrier_wait_parity(k_bar, parity); //1 TMA in flight
+    K_smem_rmem(kt_frag,0);
     __syncthreads(); //wait for kt_frag to get into rmem  
-    TMA_LOAD_V(blkv); 
-    mma_Q_KT_scale(s_frag, q_frag, kt_frag);
+    TMA_LOAD_K(blkv+1, 0); //2 TMAs in flight 
+    mma_Q_KT_scale(s_frag, q_frag, kt_frag); // one set of MMAs in flight
     flash_softmax_update<Cfg>(s_frag, o_frag, m_i, l_i); 
     pack_p_frag<Cfg>(s_frag, p_frag_packed);
-
-    mbarrier_wait_parity(v_bar, parity); 
-    V_smem_rmem(v_frag);
+    
+    mbarrier_wait_parity(v_bar, parity); // 1 TMA in flight 
+    V_smem_rmem(v_frag,1);
     mma_P_V(o_frag,p_frag_packed,v_frag);
     parity ^= 1; 
   }
-
+  int blkv = (Cfg::L_kv/Cfg::block_L_kv) - 1;
+  float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::block_L_kv/Cfg::mma_n][8] = {0.0}; 
+  __syncthreads();
+  TMA_LOAD_V(blkv, 1);//2TMAs in flight 
+  mbarrier_wait_parity(k_bar, parity); //1 TMA in flight
+  K_smem_rmem(kt_frag,0);
+  __syncthreads(); //wait for kt_frag to get into rmem  
+  mma_Q_KT_scale(s_frag, q_frag, kt_frag); // one set of MMAs in flight
+  flash_softmax_update<Cfg>(s_frag, o_frag, m_i, l_i); 
+  pack_p_frag<Cfg>(s_frag, p_frag_packed);
+  
+  mbarrier_wait_parity(v_bar, parity); // 0 TMA in flight 
+  V_smem_rmem(v_frag,1);
+  mma_P_V(o_frag,p_frag_packed,v_frag);
 
   __syncthreads();
+
   float2 *O2 = reinterpret_cast<float2*>(O); 
   int ldO2 = Cfg::D/2; 
   int head_base = block_start_BH * Cfg::L_q * ldO2;
