@@ -48,7 +48,7 @@ struct AttnConfig
   static constexpr uint32_t Vs_total = Vs_bytes*2; 
 
   static constexpr uint32_t shared_bytes =
-      cmax(Qs_bytes, Ks_total) + 8 + (2*16); //1 q_bar, 2 k_bars, 2 v_bars 
+      cmax(Qs_bytes, Ks_total) + 24; //1 q_bar, k_bar,v_bar
 
   static constexpr uint32_t bar_start = cmax(Qs_bytes, Ks_total);
   static constexpr int GL_q = L_q/block_L_q;
