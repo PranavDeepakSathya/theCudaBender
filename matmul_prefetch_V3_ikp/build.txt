@@ -1,0 +1,48 @@
+
+=== GPU Detected ===
+NVIDIA GeForce RTX 5090
+
+Using config: 5090_cfg.json
+
+=== Loaded Config ===
+ACC_PER_WARP_M = 4
+ACC_PER_WARP_N = 4
+WARP_K_STAGES = 2
+WARPS_PER_BLOCK_M = 2
+WARPS_PER_BLOCK_N = 4
+BK_STAGES = 2
+GROUP_M = 2
+GROUP_N = 2
+BLOCK_K = 64
+[1/2] /usr/local/cuda/bin/nvcc -MD -MF export.cuda.o.d -DTORCH_EXTENSION_NAME=matmul_V0 -DTORCH_API_INCLUDE_EXTENSION_H -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /usr/local/cuda/include -isystem /venv/main/include/python3.12 -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -arch=sm_120 -O3 --use_fast_math -DACC_PER_WARP_M=4 -DACC_PER_WARP_N=4 -DWARP_K_STAGES=2 -DWARPS_PER_BLOCK_M=2 -DWARPS_PER_BLOCK_N=4 -DBK_STAGES=2 -DGROUP_M=2 -DGROUP_N=2 -DBLOCK_K=64 -std=c++17 -c /root/theCudaBender/matmul_prefetch_V3_ikp/export.cu -o export.cuda.o 
+FAILED: export.cuda.o 
+/usr/local/cuda/bin/nvcc -MD -MF export.cuda.o.d -DTORCH_EXTENSION_NAME=matmul_V0 -DTORCH_API_INCLUDE_EXTENSION_H -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /usr/local/cuda/include -isystem /venv/main/include/python3.12 -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -arch=sm_120 -O3 --use_fast_math -DACC_PER_WARP_M=4 -DACC_PER_WARP_N=4 -DWARP_K_STAGES=2 -DWARPS_PER_BLOCK_M=2 -DWARPS_PER_BLOCK_N=4 -DBK_STAGES=2 -DGROUP_M=2 -DGROUP_N=2 -DBLOCK_K=64 -std=c++17 -c /root/theCudaBender/matmul_prefetch_V3_ikp/export.cu -o export.cuda.o 
+In file included from /root/theCudaBender/matmul_prefetch_V3_ikp/export.cu:6:
+/root/theCudaBender/matmul_prefetch_V3_ikp/kernel.cuh:4:10: fatal error: intra_kernel_profiler/trace/trace.cuh: No such file or directory
+    4 | #include <intra_kernel_profiler/trace/trace.cuh>
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+ninja: build stopped: subcommand failed.
+Traceback (most recent call last):
+  File "/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2774, in _run_ninja_build
+    subprocess.run(
+  File "/venv/main/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['ninja', '-v']' returned non-zero exit status 1.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/theCudaBender/matmul_prefetch_V3_ikp/run.py", line 42, in <module>
+    ext = load(
+          ^^^^^
+  File "/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 1818, in load
+    return _jit_compile(
+           ^^^^^^^^^^^^^
+  File "/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2268, in _jit_compile
+    _write_ninja_file_and_build_library(
+  File "/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2429, in _write_ninja_file_and_build_library
+    _run_ninja_build(
+  File "/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2791, in _run_ninja_build
+    raise RuntimeError(message) from e
+RuntimeError: Error building extension 'matmul_V0'

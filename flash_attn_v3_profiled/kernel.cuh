@@ -9,13 +9,15 @@ namespace ikp = intra_kernel_profiler::trace;
 enum ProfileRegion : uint16_t {
     kTotal         = 1,
     kLoadQ         = 2,
-    kLoadK_gmem    = 3,
-    kLoadK_smem    = 4,
-    kComputeQK     = 5,
-    kSoftmax       = 6,
-    kLoadV_gmem    = 7,
-    kLoadV_smem    = 8,
-    kComputePV     = 9,
+    kLoadK_fire    = 3,
+    kLoadK_wait    = 4,
+    kLoadK_smem    = 5,
+    kComputeQK     = 6,
+    kSoftmax       = 7,
+    kLoadV_fire    = 8,
+    kLoadV_wait    = 9,
+    kLoadV_smem    = 10,
+    kComputePV     = 11,
 };
 
 template <class Cfg>
@@ -247,6 +249,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   
   auto TMA_LOAD_K = [&](int blkv)
   {
+    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_fire, 0, ikp_on);
     if (w == 0)
     {
       if (l == 0)
@@ -257,10 +260,12 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
       else mbarrier_arrive(k_bar);
     }
     __syncthreads();
+    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_fire, 1, ikp_on);
   };
 
-  auto TMA_LOAD_V = [&](int blkv) 
+  auto TMA_LOAD_V = [&](int blkv)
   {
+    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_fire, 0, ikp_on);
     if (w == 0)
     {
       if (l == 0)
@@ -272,6 +277,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
 
     }
     __syncthreads();
+    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_fire, 1, ikp_on);
   };
   auto K_smem_rmem = [&](uint32_t kt_frag[Cfg::D/Cfg::mma_k][Cfg::block_L_kv/Cfg::mma_n][4])
   {
@@ -360,9 +366,9 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     __syncthreads();
     TMA_LOAD_V(blkv);//2TMAs in flight
 
-    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_gmem, 0, ikp_on);
+    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_wait, 0, ikp_on);
     mbarrier_wait_parity(k_bar, parity); //1 TMA in flight
-    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_gmem, 1, ikp_on);
+    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_wait, 1, ikp_on);
 
     IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_smem, 0, ikp_on);
     K_smem_rmem(kt_frag);
@@ -380,9 +386,9 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     pack_p_frag<Cfg>(s_frag, p_frag_packed);
     IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kSoftmax, 1, ikp_on);
 
-    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_gmem, 0, ikp_on);
+    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_wait, 0, ikp_on);
     mbarrier_wait_parity(v_bar, parity); // 1 TMA in flight
-    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_gmem, 1, ikp_on);
+    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_wait, 1, ikp_on);
 
     IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_smem, 0, ikp_on);
     V_smem_rmem(v_frag);
@@ -399,9 +405,9 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   __syncthreads();
   TMA_LOAD_V(blkv);//2TMAs in flight
 
-  IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_gmem, 0, ikp_on);
+  IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_wait, 0, ikp_on);
   mbarrier_wait_parity(k_bar, parity); //1 TMA in flight
-  IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_gmem, 1, ikp_on);
+  IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_wait, 1, ikp_on);
 
   IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_smem, 0, ikp_on);
   K_smem_rmem(kt_frag);
@@ -417,9 +423,9 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   pack_p_frag<Cfg>(s_frag, p_frag_packed);
   IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kSoftmax, 1, ikp_on);
 
-  IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_gmem, 0, ikp_on);
+  IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_wait, 0, ikp_on);
   mbarrier_wait_parity(v_bar, parity); // 0 TMA in flight
-  IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_gmem, 1, ikp_on);
+  IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_wait, 1, ikp_on);
 
   IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_smem, 0, ikp_on);
   V_smem_rmem(v_frag);

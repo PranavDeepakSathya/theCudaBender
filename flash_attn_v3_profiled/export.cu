@@ -100,7 +100,19 @@ torch::Tensor attention(
             Cfg::swizzle_mode
         );
 
-
+/*
+    kTotal         = 1,
+    kLoadQ         = 2,
+    kLoadK_fire    = 3,
+    kLoadK_wait    = 4,
+    kLoadK_smem    = 5,
+    kComputeQK     = 6,
+    kSoftmax       = 7,
+    kLoadV_fire    = 8,
+    kLoadV_wait    = 9,
+    kLoadV_smem    = 10,
+    kComputePV     = 11,
+*/
     //--------------------------------
     // IKP trace setup
     //--------------------------------
@@ -109,11 +121,13 @@ torch::Tensor attention(
             "_unused",       // id=0 (not used)
             "total",         // id=1
             "load_q",        // id=2
-            "load_k_gmem",   // id=3
+            "load_k_fire",
+            "load_k_wait",   // id=3
             "load_k_smem",   // id=4
             "compute_qk",    // id=5
             "softmax",       // id=6
-            "load_v_gmem",   // id=7
+            "load_v_fire",
+            "load_v_wait",   // id=7
             "load_v_smem",   // id=8
             "compute_pv"     // id=9
         });
