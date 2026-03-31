@@ -249,35 +249,38 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   
   auto TMA_LOAD_K = [&](int blkv)
   {
-    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_fire, 0, ikp_on);
+
     if (w == 0)
-    {
+    { 
+      IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_fire, 0, ikp_on);
       if (l == 0)
       {
         mbarrier_arrive_expect_tx(k_bar, Cfg::Ks_bytes);
         cp_async_bulk_tensor_3d(Ks, &k_map, blkv*Cfg::block_L_kv, 0, block_start_BH, k_bar);
       }
       else mbarrier_arrive(k_bar);
+      IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_fire, 1, ikp_on);
     }
     __syncthreads();
-    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadK_fire, 1, ikp_on);
+
   };
 
   auto TMA_LOAD_V = [&](int blkv)
   {
-    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_fire, 0, ikp_on);
+
     if (w == 0)
     {
+      IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_fire, 0, ikp_on);
       if (l == 0)
       {
         mbarrier_arrive_expect_tx(v_bar, Cfg::Vs_bytes);
         cp_async_bulk_tensor_3d(Vs, &v_map, blkv*Cfg::block_L_kv, 0, block_start_BH, v_bar);
       }
       else mbarrier_arrive(v_bar);
-
+      IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_fire, 1, ikp_on);
     }
     __syncthreads();
-    IKP_TRACE_REC_IF(ikp_ctx, ikp_buf, kLoadV_fire, 1, ikp_on);
+
   };
   auto K_smem_rmem = [&](uint32_t kt_frag[Cfg::D/Cfg::mma_k][Cfg::block_L_kv/Cfg::mma_n][4])
   {
@@ -315,7 +318,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
           wa::mma_m16n16k16_row_col_f32_bf16(s_frag[m][n], q_frag[k][m], kt_frag[k][n]);
       }
     }
-
+    __syncthreads();
     for (int m = 0; m < Cfg::warp_L_q/Cfg::mma_m; m++)
     {
       for (int n = 0; n < Cfg::block_L_kv/Cfg::mma_n; n++)
@@ -332,6 +335,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
         s[7] *= scale;
       }
     }
+    __syncthreads();
   };
 
   auto mma_P_V = [&](float o_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::D/Cfg::mma_n][8], 
