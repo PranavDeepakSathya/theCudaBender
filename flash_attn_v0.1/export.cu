@@ -29,7 +29,6 @@ torch::Tensor attention(
     TORCH_CHECK(V.dim() == 3);
 
     TORCH_CHECK(Q.is_contiguous());
-    TORCH_CHECK(K.is_contiguous());
 
     TORCH_CHECK(Q.size(0) == Cfg::BH);
     TORCH_CHECK(Q.size(1) == Cfg::L_q);
@@ -62,9 +61,6 @@ torch::Tensor attention(
     float* O_ptr = O.data_ptr<float>();
 
 
-    //--------------------------------
-    // TMA descriptors (generic layout)
-    //--------------------------------
 
     CUtensorMap q_map =
         TmaDescriptor<nv_bfloat16>::create_with_layout<3>(
@@ -78,10 +74,10 @@ torch::Tensor attention(
     CUtensorMap k_map =
         TmaDescriptor<nv_bfloat16>::create_with_layout<3>(
             K_ptr,
-            {Cfg::BH, 2*Cfg::L_kv, Cfg::D/2},
-            {1, 2*Cfg::block_L_kv, Cfg::D/2},
-            {2,1,0},
-            Cfg::D_swizzle_mode
+            {Cfg::BH, Cfg::L_kv, Cfg::D},
+            {1, Cfg::block_L_kv, Cfg::D},
+            {1,2,0},
+            Cfg::swizzle_mode
 
         );
 
@@ -95,9 +91,6 @@ torch::Tensor attention(
         );
 
 
-    //--------------------------------
-    // Launch
-    //--------------------------------
 
     NaiveLauncher launcher(
         Cfg::grid_size,

@@ -9,8 +9,7 @@ ext = load(
     sources=["export.cu"],
     extra_cuda_cflags=[
         "-arch=sm_120",
-        "-O3",
-        "--use_fast_math"
+        "-O3"
     ],
     extra_cflags=["-O3"],
     extra_ldflags=["-lcuda"],
@@ -28,12 +27,13 @@ print(f"BH={BH}, LQ={LQ}, D={D}, LK={LK}")
 # -----------------------------
 
 Q = torch.randn((BH, LQ, D), device=device, dtype=torch.bfloat16).contiguous()
-K = torch.randn((BH, LK, D), device=device, dtype=torch.bfloat16).contiguous()
+K = torch.randn((BH, D, LK), device=device, dtype=torch.bfloat16).transpose(1,2)
 
 # column-major V
 V = torch.randn((BH, D, LK), device=device, dtype=torch.bfloat16).transpose(1,2)
 
 assert V.stride(1) == 1
+assert K.stride(1) == 1
 
 # -----------------------------
 # Kernel
@@ -58,8 +58,9 @@ for seed in range(10):
     torch.manual_seed(seed)
 
     Q = torch.randn((BH, LQ, D), device="cuda", dtype=torch.bfloat16).contiguous()
-    K = torch.randn((BH, LK, D), device="cuda", dtype=torch.bfloat16).contiguous()
-    V = torch.randn((BH, D, LK), device="cuda", dtype=torch.bfloat16).transpose(1,2)
+    K = torch.randn((BH, D, LK), device=device, dtype=torch.bfloat16).transpose(1,2)
+    V = torch.randn((BH, D, LK), device=device, dtype=torch.bfloat16).transpose(1,2)
+
 
     O = ext.attention(Q, K, V)
 
