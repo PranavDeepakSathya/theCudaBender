@@ -11,5 +11,7 @@ pip install pandas
 pip install nvidia-cutlass-dsl
 
 
+git clone https://github.com/yao-jz/intra-kernel-profiler.git /root/intra-kernel-profiler
+
 git config --global user.email sathya.pranav.deepak@gmail.com
 git config --global user.name PranavDeepakSathya

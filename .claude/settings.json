@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//root/intra-kernel-profiler/include/intra_kernel_profiler/trace/**)",
+      "Read(//root/intra-kernel-profiler/include/intra_kernel_profiler/**)"
+    ]
+  }
+}
