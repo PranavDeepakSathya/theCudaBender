@@ -312,7 +312,7 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
   int v_parity = 0; 
   int k_parity = 0;
   TMA_LOAD_K(0,0);
-  for (int blkv = 0; blkv < Cfg::L_kv/Cfg::block_L_kv-1; blkv++)
+  for (int blkv = 0; blkv < (Cfg::L_kv/Cfg::block_L_kv)-1; blkv++)
   {
     float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::block_L_kv/Cfg::mma_n][8] = {0.0}; 
     __syncthreads(); 
@@ -329,6 +329,19 @@ __global__ void attention_kernel(__grid_constant__ const CUtensorMap q_map,
     v_parity ^= 1; 
     if ((blkv+1)%2 == 0) k_parity ^= 1; 
   }
+
+  int blkv = (Cfg::L_kv/Cfg::block_L_kv)-1;
+  float s_frag[Cfg::warp_L_q/Cfg::mma_m][Cfg::block_L_kv/Cfg::mma_n][8] = {0.0}; 
+  __syncthreads(); 
+  TMA_LOAD_V(blkv); 
+  mbarrier_wait_parity(k_bar +(8*(blkv%2)), k_parity); 
+  K_smem_rmem(kt_frag,blkv%2); 
+  mma_Q_KT_scale(s_frag, q_frag, kt_frag);
+  flash_softmax_update<Cfg>(s_frag, o_frag, m_i, l_i); 
+  pack_p_frag<Cfg>(s_frag, p_frag_packed);
+  mbarrier_wait_parity(v_bar, v_parity); 
+  V_smem_rmem(v_frag);
+  mma_P_V(o_frag,p_frag_packed,v_frag);
 
 
   __syncthreads();
