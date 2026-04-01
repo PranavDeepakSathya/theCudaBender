@@ -43,11 +43,12 @@ struct AttnConfig
 
   static constexpr uint32_t Vs_bytes =
       block_L_kv * D * sizeof(nv_bfloat16);
-
+  static constexpr uint32_t Ks_total = 2*Ks_bytes; 
+  static constexpr uint32_t Vs_total = 2*Vs_bytes;
   static constexpr uint32_t shared_bytes =
-      cmax(Qs_bytes, Ks_bytes + Vs_bytes) + 1024;
+      cmax(Qs_bytes, Ks_total + Vs_total) + 1024;
 
-  static constexpr uint32_t bar_start = cmax(Qs_bytes, Ks_bytes + Vs_bytes);
+  static constexpr uint32_t bar_start = cmax(Qs_bytes, Ks_total + Vs_total);
   static constexpr int GL_q = L_q/block_L_q;
   static constexpr int grid_size = BH*GL_q;
 

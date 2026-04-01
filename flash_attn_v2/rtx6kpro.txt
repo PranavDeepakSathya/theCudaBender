@@ -1,0 +1,23 @@
+[1/2] /usr/local/cuda/bin/nvcc -MD -MF export.cuda.o.d -DTORCH_EXTENSION_NAME=attention_warp -DTORCH_API_INCLUDE_EXTENSION_H -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include -isystem /root/theCudaBender/.venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /usr/local/cuda/include -isystem /venv/main/include/python3.12 -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -arch=sm_120 -O3 -std=c++17 -c /root/theCudaBender/flash_attn_v2/export.cu -o export.cuda.o 
+/root/theCudaBender/flash_attn_v2/kernel.cuh(349): warning #177-D: variable "next_stage" was declared but never referenced
+    int next_stage = next_blkv % 2;
+        ^
+          detected during instantiation of "void launch_attention<Cfg>(NaiveLauncher &, CUtensorMap, CUtensorMap, CUtensorMap, float *) [with Cfg=Cfg]" at line 102 of /root/theCudaBender/flash_attn_v2/export.cu
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+[2/2] c++ export.cuda.o -shared -lcuda -L/root/theCudaBender/.venv/lib/python3.12/site-packages/torch/lib -lc10 -lc10_cuda -ltorch_cpu -ltorch_cuda -ltorch -ltorch_python -L/usr/local/cuda/lib64 -lcudart -o attention_warp.so
+BH=32, LQ=8192, D=128, LK=4096
+Max abs error: 0.15765908360481262
+Mean abs error: 0.00029328535310924053
+0 0.11957541108131409
+1 0.14219138026237488
+2 0.12207726389169693
+3 0.14298395812511444
+4 0.12924140691757202
+5 0.12248101830482483
+6 0.12434671819210052
+7 0.13550086319446564
+8 0.144921213388443
+9 0.1249697282910347
+Effective TFLOP/s: 340.4920924466032
