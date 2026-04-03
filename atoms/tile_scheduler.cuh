@@ -1,15 +1,6 @@
 #pragma once
 
-// Simple persistent tile scheduler
-// Maps (sm_id, iter) -> linear tile_id
-//
-// Guarantees:
-//   - no collisions
-//   - balanced work across SMs
-//   - trivial integer math
-//   - GPU-friendly (no modulo, no gcd)
-//
-// Tile interpretation (tile_id -> (m,n)) is handled separately.
+
 
 namespace tile_sched {
 
@@ -62,23 +53,15 @@ void morton_decode_2d(uint32_t tile_id, uint32_t &m, uint32_t &n)
       int group_id = b / blocks_per_group;
       int local_id = b % blocks_per_group;
 
-      // -------------------------
-      // outer group coords (COL-MAJOR)
-      // group_id = group_n * g_outer_m + group_m
-      // -------------------------
+
       int global_m = group_id % g_outer_m;
       int global_n = group_id / g_outer_m;
 
-      // -------------------------
-      // inner coords (ROW-MAJOR)
-      // local_id = local_m * group_n + local_n
-      // -------------------------
+
       int local_m = local_id / group_n;
       int local_n = local_id % group_n;
 
-      // -------------------------
-      // final tile coords
-      // -------------------------
+
       int tile_m = global_m * group_m + local_m;
       int tile_n = global_n * group_n + local_n;
 
