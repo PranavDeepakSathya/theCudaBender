@@ -9,7 +9,7 @@ pip install torch
 pip install matplotlib
 pip install pandas
 pip install nvidia-cutlass-dsl
-
+pip install ninja
 
 git clone https://github.com/yao-jz/intra-kernel-profiler.git /root/intra-kernel-profiler
 
