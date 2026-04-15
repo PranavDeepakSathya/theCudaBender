@@ -61,6 +61,9 @@ def valid(c):
     barrier_bytes = 8
     smem_bytes    = As_bytes + Bs_bytes + barrier_bytes
     if smem_bytes > MAX_SMEM_PER_BLOCK:                          return False
+    
+    # --- TMA block sizes ------ 
+    if BM > 256 or BN > 256:                                     return False 
 
     # ── register pressure estimate ────────────────────────────────────────────
     # ra[apm][4] + rb[apn][2] + rc[apm][apn][4] + ~40 overhead (addresses,
