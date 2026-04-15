@@ -13,11 +13,12 @@ from torch.utils.cpp_extension import load
 SPACE = {
     "ACC_PER_WARP_M":    [2, 4, 8],
     "ACC_PER_WARP_N":    [2, 4, 8],
-    "WARPS_PER_BLOCK_M": [2, 4, 8],
-    "WARPS_PER_BLOCK_N": [2, 4, 8],
+    "WARPS_PER_BLOCK_M": [2, 4],
+    "WARPS_PER_BLOCK_N": [2, 4],
     "BLOCK_K":           [32, 64],
     "GROUP_M":           [2,4], 
-    "GROUP_N":           [2,4]
+    "GROUP_N":           [2,4],
+    "BK_STAGES":         [2,3]
 }
 
 M, N, K     = 4096, 4096, 4096
@@ -40,6 +41,7 @@ def valid(c):
     bk   = c["BLOCK_K"]
     grp_m = c["GROUP_M"]
     grp_n = c["GROUP_N"]
+    bk_stages = c["BK_STAGES"]
 
     if not all(is_pow2(x) for x in [apm, apn, wbm, wbn, bk]): return False
     if bk % mma_k != 0:                                         return False
@@ -55,7 +57,7 @@ def valid(c):
     if not is_pow2(warp_k_iters):          return False
 
     # ── threads per block: config.cuh requires block_size < 1024 ──────────────
-    num_warps   = wbm * wbn
+    num_warps   = ((wbm * wbn) + 1)
     block_size  = num_warps * 32
     if block_size >= 1024:                                       return False
 
@@ -63,7 +65,7 @@ def valid(c):
     As_bytes      = BM * bk * 2        # bf16
     Bs_bytes      = bk * BN * 2        # bf16
     barrier_bytes = 8
-    smem_bytes    = As_bytes + Bs_bytes + barrier_bytes
+    smem_bytes    = bk_stages*(As_bytes + Bs_bytes + (2*barrier_bytes))
     if smem_bytes > MAX_SMEM_PER_BLOCK:                          return False
     
     # --- TMA block sizes ------ 
@@ -110,7 +112,7 @@ compiled, failed = [], 0
 work = [(c, SRC, (M, N, K)) for c in combos]
 
 import psutil
-_avail_gb = psutil.virtual_memory().available / (2*1024**3)
+_avail_gb = psutil.virtual_memory().available / (1024**3)
 _nvcc_est_gb = 6  # conservative per-process estimate for nvcc -O3 on template CUDA
 _max_compile = max(1, int(_avail_gb // _nvcc_est_gb))
 print(f"available RAM: {_avail_gb:.1f} GB → {_max_compile} parallel compiles\n")

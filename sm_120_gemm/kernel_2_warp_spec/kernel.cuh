@@ -20,19 +20,15 @@ __global__ void matmul_kernel(
   float2 *C2 = reinterpret_cast<float2*>(C); 
 
   uint32_t As_base = static_cast<uint32_t>(__cvta_generic_to_shared(smem_raw));
-  uint32_t Bs = As_base + (Cfg::As_bytes*Cfg::bk_stages);
-  uint32_t empty_bar_base = Bs + (Cfg::Bs_bytes*Cfg::bk_stages);
-  uint32_t full_bar_base = empty_bar + (8*Cfg::bk_stages); 
+  uint32_t Bs_base = As_base + (Cfg::As_bytes*Cfg::bk_stages);
+  uint32_t empty_bar_base = Bs_base + (Cfg::Bs_bytes*Cfg::bk_stages);
+  uint32_t full_bar_base = empty_bar_base + (8*Cfg::bk_stages); 
 
   auto As        = [&](int s) { return As_base        + s * Cfg::As_bytes; };
   auto Bs        = [&](int s) { return Bs_base        + s * Cfg::Bs_bytes; };
   auto empty_bar = [&](int s) { return empty_bar_base + s * 8; };
   auto full_bar  = [&](int s) { return full_bar_base  + s * 8; };
 
-
-  uint32_t ra[Cfg::acc_per_warp_m][4];
-  uint32_t rb[Cfg::acc_per_warp_n][2];
-  float rc[Cfg::acc_per_warp_m][Cfg::acc_per_warp_n][4] = {0.0};
 
   if (t == 0)
   {
@@ -46,38 +42,51 @@ __global__ void matmul_kernel(
   __syncthreads();
 
   
-
-
-  
-  for (int bk_idx = 0; bk_idx < Cfg::block_k_iters; bk_idx ++)
+  if (w == Cfg::dma_warp_id)
   {
-    __syncthreads();
-    if (w == 0)
-    { 
-      if (l == 0)
+    int producer_parity = 1; 
+    int stage = 0; 
+    for (int bk_idx = 0; bk_idx < Cfg::block_k_iters; bk_idx++)
+    {
+      mbarrier_wait_parity(empty_bar(stage),producer_parity);
+      if(l == 0)
       {
-        mbarrier_arrive_expect_tx(m_bar, Cfg::As_bytes + Cfg::Bs_bytes); 
-        gemm.load_A_g2s(bk_idx, block_start_m, As, m_bar); 
-        gemm.load_B_g2s(bk_idx, block_start_n, Bs, m_bar);
+        mbarrier_arrive_expect_tx(full_bar(stage),Cfg::As_bytes + Cfg::Bs_bytes);
+        gemm.load_A_g2s(bk_idx, block_start_m, As(stage), full_bar(stage));
+        gemm.load_B_g2s(bk_idx, block_start_n, Bs(stage), full_bar(stage)); 
       }
       else
       {
-        mbarrier_arrive(m_bar);
+        mbarrier_arrive(full_bar(stage));
       }
+      stage = (stage + 1) % Cfg::bk_stages; 
+      if (stage == 0) producer_parity ^= 1;
     }
-    __syncthreads(); 
-    mbarrier_wait_parity(m_bar, parity); 
-
-    for (int wk_idx = 0; wk_idx < Cfg::warp_k_iters; wk_idx++)
-    {
-      gemm.load_A_s2r(ra,As,wk_idx);
-      gemm.load_B_s2r(rb,Bs,wk_idx); 
-      gemm.mma(rc,ra,rb);
-    }
-    parity^=1;
   }
-  __syncthreads();
-  gemm.store_C(C2,rc,block_start_m,block_start_n);
+  else 
+  {
+    int consumer_parity = 0; 
+    int stage = 0; 
+    uint32_t ra[Cfg::acc_per_warp_m][4];
+    uint32_t rb[Cfg::acc_per_warp_n][2];
+    float rc[Cfg::acc_per_warp_m][Cfg::acc_per_warp_n][4] = {0.0};
+    for (int bk_idx = 0; bk_idx < Cfg::block_k_iters; bk_idx++)
+    {
+      mbarrier_wait_parity(full_bar(stage), consumer_parity); 
+      for (int wk_idx = 0; wk_idx < Cfg::warp_k_iters; wk_idx++)
+      {
+        gemm.load_A_s2r(ra,As(stage),wk_idx);
+        gemm.load_B_s2r(rb,Bs(stage),wk_idx); 
+        gemm.mma(rc,ra,rb);
+      }
+      mbarrier_arrive(empty_bar(stage));
+      stage = (stage + 1) % Cfg::bk_stages; 
+      if (stage == 0) consumer_parity ^= 1;
+    }
+    sync_bar<Cfg::warps_per_block_m*Cfg::warps_per_block_n*32>(); 
+    gemm.store_C(C2, rc, block_start_m,block_start_n);
+  }
+
 }
 
 template <class Cfg>

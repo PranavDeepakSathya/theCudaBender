@@ -111,7 +111,7 @@ struct GemmConfig
   static constexpr uint32_t As_bytes       = BM * BK * sizeof(nv_bfloat16);
   static constexpr uint32_t Bs_bytes       = BK * BN * sizeof(nv_bfloat16);
   static constexpr uint32_t barrier_bytes  = 16;
-  static constexpr uint32_t shared_bytes   = BK_stages*(As_bytes + Bs_bytes + barrier_bytes);
+  static constexpr uint32_t shared_bytes   = bk_stages*(As_bytes + Bs_bytes + barrier_bytes);
   
   
 };
