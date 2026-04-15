@@ -1,17 +1,9 @@
 #pragma once
 #include <cuda.h>
 
-////////////////////////////////////////////////////////////////////////////////
-// Shared address helper (you already use this pattern)
-////////////////////////////////////////////////////////////////////////////////
-
 __device__ inline uint32_t cvta_smem(void* ptr) {
   return static_cast<uint32_t>(__cvta_generic_to_shared(ptr));
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// mbarrier.init
-////////////////////////////////////////////////////////////////////////////////
 
 __device__ inline void mbarrier_init(uint32_t addr, int count) {
   asm volatile(
@@ -19,10 +11,6 @@ __device__ inline void mbarrier_init(uint32_t addr, int count) {
     :: "r"(addr), "r"(count)
   );
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// mbarrier.arrive (release)
-////////////////////////////////////////////////////////////////////////////////
 
 __device__ inline void mbarrier_arrive(uint32_t addr) {
   asm volatile(
@@ -32,10 +20,7 @@ __device__ inline void mbarrier_arrive(uint32_t addr) {
   );
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// mbarrier.arrive.expect_tx
-// Producer uses this after cp.async.bulk.tensor
-////////////////////////////////////////////////////////////////////////////////
+
 
 __device__ inline void mbarrier_arrive_expect_tx(uint32_t addr, int bytes) {
   asm volatile(
@@ -45,10 +30,7 @@ __device__ inline void mbarrier_arrive_expect_tx(uint32_t addr, int bytes) {
   );
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// mbarrier.wait.parity.acquire
-// phase is 0/1, computed from reuse count
-////////////////////////////////////////////////////////////////////////////////
+
 
 __device__ inline void mbarrier_wait_parity(uint32_t addr, int phase) {
   asm volatile(
@@ -64,9 +46,7 @@ __device__ inline void mbarrier_wait_parity(uint32_t addr, int phase) {
   );
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Optional: proxy fence for TMA ordering
-////////////////////////////////////////////////////////////////////////////////
+
 
 __device__ inline void tma_fence() {
   asm volatile(
@@ -75,10 +55,7 @@ __device__ inline void tma_fence() {
   );
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// cp.async.bulk.tensor.2d.shared::cta.global
-// Your exact form: dst smem addr + tmap + coords + mbarrier
-////////////////////////////////////////////////////////////////////////////////
+
 
 __device__ inline void cp_async_bulk_tensor_2d(
     uint32_t dst_smem_addr,
@@ -146,7 +123,6 @@ __device__ inline void cp_async_bulk_tensor_3d_store(
   );
 }
 
-
 __device__ inline void cp_async_commit_group() {
   asm volatile(
     "cp.async.commit_group;\n"
@@ -163,5 +139,3 @@ __device__ inline void cp_async_wait_group() {
 }
 
 
-//credits to https://github.com/gau-nernst/learn-cuda/blob/main/02c_matmul_sm120/common.h
-//guuci guy. 
