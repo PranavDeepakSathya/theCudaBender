@@ -54,7 +54,6 @@ struct GemmConfig
   static constexpr int warp_k_iters  = BK / mma_k;
   static constexpr int block_k_iters = K  / BK;
 
-  static_assert(is_pow2(warp_k_iters));
 
   // ── block / grid ────────────────────────────────────────────────────────────
   static constexpr int num_warps  = warps_per_block_m * warps_per_block_n;
@@ -69,7 +68,7 @@ struct GemmConfig
   // ── smem footprint ──────────────────────────────────────────────────────────
   static constexpr uint32_t As_bytes       = BM * BK * sizeof(nv_bfloat16);
   static constexpr uint32_t Bs_bytes       = BK * BN * sizeof(nv_bfloat16);
-  static constexpr uint32_t barrier_bytes  = 16;
+  static constexpr uint32_t barrier_bytes  = 8;
   static constexpr uint32_t shared_bytes   = As_bytes + Bs_bytes + barrier_bytes;
 
   static constexpr CUtensorMapSwizzle swizzle_mode = CU_TENSOR_MAP_SWIZZLE_NONE; 

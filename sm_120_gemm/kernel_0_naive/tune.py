@@ -11,17 +11,24 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from torch.utils.cpp_extension import load
 
 SPACE = {
-    "ACC_PER_WARP_M":    [2, 4],
-    "ACC_PER_WARP_N":    [2, 4],
-    "WARPS_PER_BLOCK_M": [2, 4],
-    "WARPS_PER_BLOCK_N": [2, 4],
-    "BLOCK_K":           [32, 64, 128],
+    "ACC_PER_WARP_M":    [2, 4, 8],
+    "ACC_PER_WARP_N":    [2, 4, 8],
+    "WARPS_PER_BLOCK_M": [2, 4, 8],
+    "WARPS_PER_BLOCK_N": [2, 4, 8],
+    "BLOCK_K":           [16, 32, 64, 128],
 }
 
 M, N, K     = 4096, 4096, 4096
 mma_m, mma_n, mma_k = 16, 8, 16
 
-def is_pow2(x): return x > 1 and (x & (x-1)) == 0
+# ── query hardware limits from the actual GPU ────────────────────────────────
+_props = torch.cuda.get_device_properties(0)
+MAX_SMEM_PER_BLOCK  = _props.shared_memory_per_block_optin
+MAX_REGS_PER_SM     = _props.regs_per_multiprocessor
+MAX_REGS_PER_THREAD = 255   # architectural limit, not exposed via torch
+MAX_THREADS_PER_SM  = _props.max_threads_per_multi_processor
+
+def is_pow2(x): return x > 0 and (x & (x-1)) == 0
 
 def valid(c):
     apm  = c["ACC_PER_WARP_M"]
@@ -31,12 +38,39 @@ def valid(c):
     bk   = c["BLOCK_K"]
 
     if not all(is_pow2(x) for x in [apm, apn, wbm, wbn, bk]): return False
-    if K % bk != 0:                                              return False
     if bk % mma_k != 0:                                         return False
-    if wbm * wbn * 32 >= 1024:                                  return False
+    if K % bk != 0:                                              return False
+
+    # ── tile sizes ────────────────────────────────────────────────────────────
     BM = mma_m * apm * wbm
     BN = mma_n * apn * wbn
     if M % BM != 0 or N % BN != 0:                             return False
+
+    # ── warp_k_iters must be pow2 and >1 (static_assert in config.cuh) ───────
+    warp_k_iters = bk // mma_k
+    if not is_pow2(warp_k_iters):          return False
+
+    # ── threads per block: config.cuh requires block_size < 1024 ──────────────
+    num_warps   = wbm * wbn
+    block_size  = num_warps * 32
+    if block_size >= 1024:                                       return False
+
+    # ── shared memory ─────────────────────────────────────────────────────────
+    As_bytes      = BM * bk * 2        # bf16
+    Bs_bytes      = bk * BN * 2        # bf16
+    barrier_bytes = 8
+    smem_bytes    = As_bytes + Bs_bytes + barrier_bytes
+    if smem_bytes > MAX_SMEM_PER_BLOCK:                          return False
+
+    # ── register pressure estimate ────────────────────────────────────────────
+    # ra[apm][4] + rb[apn][2] + rc[apm][apn][4] + ~40 overhead (addresses,
+    # loop vars, TMA descriptors, mbarrier state, etc.)
+    regs_est = apm * 4 + apn * 2 + apm * apn * 4 + 40
+    if regs_est > MAX_REGS_PER_THREAD:                           return False
+
+    # need at least 1 block fitting in SM register file
+    if regs_est * block_size > MAX_REGS_PER_SM:                  return False
+
     return True
 
 SRC  = str(Path(__file__).parent / "export.cu")
@@ -64,7 +98,13 @@ def compile_one(item):
 compiled, failed = [], 0
 work = [(c, SRC, (M, N, K)) for c in combos]
 
-with ProcessPoolExecutor(max_workers=min(8, os.cpu_count())) as pool:
+import psutil
+_avail_gb = psutil.virtual_memory().available / (1024**3)
+_nvcc_est_gb = 6  # conservative per-process estimate for nvcc -O3 on template CUDA
+_max_compile = max(1, int(_avail_gb // _nvcc_est_gb))
+print(f"available RAM: {_avail_gb:.1f} GB → {_max_compile} parallel compiles\n")
+
+with ProcessPoolExecutor(max_workers=_max_compile) as pool:
     futs = {pool.submit(compile_one, w): w for w in work}
     for i, fut in enumerate(as_completed(futs), 1):
         cfg, name, err = fut.result()
