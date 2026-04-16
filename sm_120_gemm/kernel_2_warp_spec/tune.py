@@ -18,7 +18,8 @@ SPACE = {
     "BLOCK_K":           [32, 64],
     "GROUP_M":           [2,4], 
     "GROUP_N":           [2,4],
-    "BK_STAGES":         [2,3]
+    "BK_STAGES":         [2,3],
+    "WK_STAGES":         [1,2]
 }
 
 M, N, K     = 4096, 4096, 4096
@@ -42,6 +43,7 @@ def valid(c):
     grp_m = c["GROUP_M"]
     grp_n = c["GROUP_N"]
     bk_stages = c["BK_STAGES"]
+    wk_stages = c["WK_STAGES"]
 
     if not all(is_pow2(x) for x in [apm, apn, wbm, wbn, bk]): return False
     if bk % mma_k != 0:                                         return False
@@ -74,7 +76,7 @@ def valid(c):
     # ── register pressure estimate ────────────────────────────────────────────
     # ra[apm][4] + rb[apn][2] + rc[apm][apn][4] + ~40 overhead (addresses,
     # loop vars, TMA descriptors, mbarrier state, etc.)
-    regs_est = apm * 4 + apn * 2 + apm * apn * 4 + 40
+    regs_est = ((apm * 4) + (apn * 2))*wk_stages + apm * apn * 4 + 40
     if regs_est > MAX_REGS_PER_THREAD:                           return False
 
     # need at least 1 block fitting in SM register file
