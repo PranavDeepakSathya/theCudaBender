@@ -26,8 +26,7 @@ else:
         "BLOCK_K":           64,
         "GROUP_M":            4,
         "GROUP_N":            4,
-        "BK_STAGES":          2,
-        "WK_STAGES":          2
+        "BK_STAGES":          2
     }
     print("no autotune results found, using defaults")
 

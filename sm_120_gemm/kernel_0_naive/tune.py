@@ -18,7 +18,7 @@ SPACE = {
     "BLOCK_K":           [16, 32, 64, 128],
 }
 
-M, N, K     = 4096, 4096, 4096
+M, N, K     = 8192, 8192, 8192
 mma_m, mma_n, mma_k = 16, 8, 16
 
 # ── query hardware limits from the actual GPU ────────────────────────────────

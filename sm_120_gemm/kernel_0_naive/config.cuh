@@ -23,7 +23,7 @@ static constexpr bool is_pow2(int x) { return x > 1 && ((x & (x-1)) == 0); }
 struct GemmConfig
 {
   // ── problem size ────────────────────────────────────────────────────────────
-  static constexpr int M = 4096, N = 4096, K = 4096;
+  static constexpr int M = 8192, N = 8192, K = 8192;
 
   // ── mma shape ───────────────────────────────────────────────────────────────
   static constexpr int mma_m = 16, mma_n = 8, mma_k = 16;

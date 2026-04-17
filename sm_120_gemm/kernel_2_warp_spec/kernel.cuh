@@ -67,25 +67,18 @@ __global__ void matmul_kernel(
   {
     int consumer_parity = 0; 
     int stage = 0; 
-    uint32_t ra[Cfg::wk_stages][Cfg::acc_per_warp_m][4];
-    uint32_t rb[Cfg::wk_stages][Cfg::acc_per_warp_n][2];
+    uint32_t ra[Cfg::acc_per_warp_m][4];
+    uint32_t rb[Cfg::acc_per_warp_n][2];
     float rc[Cfg::acc_per_warp_m][Cfg::acc_per_warp_n][4] = {0.0};
     for (int bk_idx = 0; bk_idx < Cfg::block_k_iters; bk_idx++)
     {
-      mbarrier_wait_parity(full_bar(stage), consumer_parity);
-      gemm.load_A_s2r(ra[0],As(stage),0);
-      gemm.load_B_s2r(rb[0],Bs(stage),0); 
-      for (int wk_idx = 0; wk_idx < Cfg::warp_k_iters - (Cfg::wk_stages-1); wk_idx++)
+      mbarrier_wait_parity(full_bar(stage), consumer_parity); 
+      for (int wk_idx = 0; wk_idx < Cfg::warp_k_iters; wk_idx++)
       {
-        gemm.load_A_s2r(ra[(wk_idx+1)%Cfg::wk_stages],As(stage),wk_idx+1);
-        gemm.load_B_s2r(rb[(wk_idx+1)%Cfg::wk_stages],Bs(stage),wk_idx+1); 
-        gemm.mma(rc,ra[wk_idx%Cfg::wk_stages],rb[wk_idx%Cfg::wk_stages]);
+        gemm.load_A_s2r(ra,As(stage),wk_idx);
+        gemm.load_B_s2r(rb,Bs(stage),wk_idx); 
+        gemm.mma(rc,ra,rb);
       }
-      for (int wk_idx = Cfg::warp_k_iters - (Cfg::wk_stages-1); wk_idx < Cfg::warp_k_iters; wk_idx++)
-      {
-        gemm.mma(rc,ra[wk_idx%Cfg::wk_stages],rb[wk_idx%Cfg::wk_stages]);
-      }
-
       mbarrier_arrive(empty_bar(stage));
       stage = (stage + 1) % Cfg::bk_stages; 
       if (stage == 0) consumer_parity ^= 1;
