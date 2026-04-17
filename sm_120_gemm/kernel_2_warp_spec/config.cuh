@@ -26,9 +26,7 @@
 #ifndef BK_STAGES 
 #define BK_STAGES 2
 #endif
-#ifndef WK_STAGES 
-#define WK_STAGES 2
-#endif
+
 
 static constexpr bool is_pow2(int x) { return x > 1 && ((x & (x-1)) == 0); }
 
@@ -65,8 +63,7 @@ struct GemmConfig
   static constexpr int warp_k_iters  = BK / mma_k;
   static constexpr int block_k_iters = K  / BK;
   static constexpr int bk_stages = BK_STAGES;
-  static constexpr int wk_stages = WK_STAGES; 
-  static_assert(mma_k*wk_stages <= BK); 
+
 
   // ── block / grid ────────────────────────────────────────────────────────────
   static constexpr int dma_warp_id  = warps_per_block_m * warps_per_block_n;

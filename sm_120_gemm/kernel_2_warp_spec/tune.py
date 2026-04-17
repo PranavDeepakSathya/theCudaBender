@@ -19,7 +19,6 @@ SPACE = {
     "GROUP_M":           [2,4], 
     "GROUP_N":           [2,4],
     "BK_STAGES":         [2,3],
-    "WK_STAGES":         [1]
 }
 
 M, N, K     = 4096, 4096, 4096
@@ -43,7 +42,6 @@ def valid(c):
     grp_m = c["GROUP_M"]
     grp_n = c["GROUP_N"]
     bk_stages = c["BK_STAGES"]
-    wk_stages = c["WK_STAGES"]
 
     if not all(is_pow2(x) for x in [apm, apn, wbm, wbn, bk]): return False
     if bk % mma_k != 0:                                         return False

@@ -19,7 +19,7 @@ SPACE = {
     "GROUP_M":           [2,4], 
     "GROUP_N":           [2,4],
     "BK_STAGES":         [2,3],
-    "WK_STAGES":         [1]
+    "WK_STAGES":         [2]
 }
 
 M, N, K     = 4096, 4096, 4096
