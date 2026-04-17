@@ -89,3 +89,32 @@ print(f"avg  : {avg_ms:.4f} ms  |  {tflops:.2f} TFLOP/s")
 
 ms = triton.testing.do_bench(lambda: ext.gemm(A, B), return_mode="median")
 print(f"median (triton): {ms:.4f} ms  |  {2.0*M*N*K/(ms*1e-3)/1e12:.2f} TFLOP/s")
+
+# ── torch.matmul reference (cuBLAS via torch) ─────────────────────────────────
+print("\n=== torch.matmul reference ===")
+
+for _ in range(20):
+    torch.matmul(A, B)
+torch.cuda.synchronize()
+
+# which kernel does torch dispatch on this card?
+with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CUDA]) as prof:
+    torch.matmul(A, B)
+    torch.cuda.synchronize()
+
+cuda_events = [e for e in prof.key_averages() if e.device_type == torch.autograd.DeviceType.CUDA]
+if cuda_events:
+    kname = max(cuda_events, key=lambda e: e.self_device_time_total).key
+    print(f"dispatched kernel: {kname}")
+else:
+    print("dispatched kernel: (no CUDA event captured)")
+
+ms_torch = triton.testing.do_bench(lambda: torch.matmul(A, B), return_mode="median")
+tflops_torch = 2.0 * M * N * K / (ms_torch * 1e-3) / 1e12
+print(f"median (triton): {ms_torch:.4f} ms  |  {tflops_torch:.2f} TFLOP/s")
+
+# ── relative ──────────────────────────────────────────────────────────────────
+print("\n=== Relative ===")
+print(f"ours   : {ms:.4f} ms  |  {2.0*M*N*K/(ms*1e-3)/1e12:.2f} TFLOP/s")
+print(f"torch  : {ms_torch:.4f} ms  |  {tflops_torch:.2f} TFLOP/s")
+print(f"speedup: {ms_torch/ms:.3f}x  ({(ms_torch/ms - 1)*100:+.1f}%)")
